@@ -1,0 +1,8 @@
+{
+  "name": "Equipment Rental Calculator",
+  "description": "提供電腦、筆記型電腦與印表機租賃方案的即時費用試算與報價摘要生成工具。",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
