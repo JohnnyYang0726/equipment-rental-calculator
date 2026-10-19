@@ -293,5 +293,5 @@ test("summary carries known/pending totals, service scope, periods, discount and
   assert.match(t, /全租期費用：NT\$ 500/);
   assert.match(t, /押金（不計入租金）：NT\$ 4,000/);
   assert.match(t, /核定半年專案/);
-  assert.match(t, /報價（已人工確認）/);
+  assert.match(t, /報價草稿（資料已齊，待主管核准）/);
 });

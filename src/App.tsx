@@ -1,4 +1,5 @@
-import React, { useRef, useState } from "react";
+import React, { lazy, Suspense, useRef, useState } from "react";
+const TeamWorkspace = lazy(() => import("./TeamWorkspace"));
 import {
   Calculator,
   Plus,
@@ -96,6 +97,7 @@ function download(name: string, text: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(u), 1000);
 }
 const HELP = [
+  "員工登入：按「團隊／主管核准」，輸入檢測或維修系統已開通的同一組電子郵件及密碼。主管可核准及管理員工；客服／行政可同步與載入報價。工程師、收送人員不開放租賃金額。",
   "先問用途、設備數量、起迄日期、地點與最晚完成時間。所有租賃包含維修與耗材，送裝及回收另計，租期1天至3年。",
   "一張單可加入多種設備與服務；原方案沿用原價，特殊設備或沒有原價的租期用人工報價，未知留空。",
   "每項填數量、天數／月數、範圍。半年填6個月、全年填12個月；日期不自動換算計費，需逐項確認。不同品項可設定不同日期。",
@@ -103,9 +105,13 @@ const HELP = [
   "急件先確認庫存、人員與交期，再加品項填費用及承諾時間；同一段工時不可重複收費。",
   "優惠只套用勾選的設備基本租金，不含超印、耗材採購、軟體、收送、工程及急件。金額與百分比擇一，填原因。",
   "確認稅額、押金、付款安排、送裝與回收費用。勾選交付方式不會自動產生費用，請加品項。",
-  "填齊並完成人工核對後才標示已確認；任何修改都取消最後核對。有待估時可輸出詢價草稿，但不能當完整確定報價。",
-  "保存草稿只在此瀏覽器，不是多人同步。下載JSON可備份匯入；另開或匯入前先保存。此版沒有主管帳號權限或庫存預約，依公司流程核定。",
-  "複製、列印與文字下載使用同一份明細。報價不等於保留設備；付款、交付與續租依確認約定。",
+  "填齊並完成人工核對後，會標示資料已齊、待團隊核准；任何修改都取消最後核對。有待估時可輸出詢價草稿，但不能當完整確定報價。",
+  "保存草稿只在此瀏覽器，不是多人同步。下載JSON可備份匯入；另開或匯入前先保存。請按頁首「團隊／主管核准」以員工帳號登入，同步本張報價供同事共用。系統不會自動保留庫存。",
+  "本機複製、列印及下載均為草稿。團隊頁先同步，主管查看最新版本並填原因核准後，才可複製或下載正式報價；新版本須重新核准。",
+  "同事接手：在團隊頁搜尋客戶／單號，按「載入修改」，確認替換後編輯；再同步建立新版。若提示同事已更新，先保存你的修改，再載入最新版本，系統不會強行覆蓋。清單每15秒更新，表單內容不會自動換掉。",
+  "主管核准：按「查看版本與核准」，展開明細，核對費用、期數、優惠和待估項目。填寫原因，按「核准最新版本」；需要補件時按「退回／撤回核准」。資料未齊無法核准。",
+  "新增員工：主管進團隊頁下方「員工帳號與權限」，填電子郵件、姓名及角色，勾啟用後保存。未開通帳號可產生一次性連結，私下交本人設定密碼；既有帳號直接登入。修改角色或停用也會套用到檢測與維修系統。",
+  "正式報價：核准後在團隊頁按「複製正式報價」、「下載正式文字」或「下載正式報價（可列印）」。每次都重新核對最新核准；後續內容改動須同步、重新核准。共用電腦用完請按「登出此分頁」。",
 ];
 export default function App() {
   const [q, setQ] = useState<Quote>(newQuote);
@@ -120,6 +126,9 @@ export default function App() {
   );
   const [paste, setPaste] = useState("");
   const [pendingImport, setPendingImport] = useState<Quote | null>(null);
+  const [teamOpen, setTeamOpen] = useState(false);
+  const [teamStarted, setTeamStarted] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
   const file = useRef<HTMLInputElement>(null),
     help = useRef<HTMLDialogElement>(null),
     helpBtn = useRef<HTMLButtonElement>(null);
@@ -185,6 +194,7 @@ export default function App() {
         if (!v) throw Error("沒有已保存的草稿");
         setQ(restoreQuote(v));
       }
+      setResetKey((v) => v + 1);
       setEditing("");
       setUndo(null);
       setMessage("畫面已替換，尚未覆寫本機保存；請重新核對。");
@@ -196,9 +206,7 @@ export default function App() {
   async function copy() {
     try {
       await navigator.clipboard.writeText(text);
-      setMessage(
-        s.ready ? "已複製人工確認報價。" : "已複製詢價草稿，仍有待確認項目。",
-      );
+      setMessage("已複製本機草稿；正式報價請由團隊頁輸出最新核准版本。");
     } catch {
       setMessage("無法使用剪貼簿，請展開完整文字自行複製，或下載文字檔。");
     }
@@ -264,12 +272,18 @@ export default function App() {
           <div>
             <p className="eyebrow">永捷系統科技 · 內部報價工具</p>
             <h1>
-              租賃詢價與多品項報價 <span>v1.0.0</span>
+              租賃詢價與多品項報價 <span>v1.1.0</span>
             </h1>
             <p>先問需求，再逐項估價；特殊服務保留人工確認。</p>
           </div>
         </div>
         <div className="toolbar">
+          <button
+            className="primary"
+            onClick={() => (setTeamStarted(true), setTeamOpen(true))}
+          >
+            團隊／主管核准
+          </button>
           <button ref={helpBtn} onClick={() => help.current?.showModal()}>
             <BookOpen size={17} />
             操作說明
@@ -306,6 +320,7 @@ export default function App() {
           <button
             onClick={() => {
               setQ(pendingImport);
+              setResetKey((v) => v + 1);
               setPendingImport(null);
               setEditing("");
               setUndo(null);
@@ -318,6 +333,38 @@ export default function App() {
           <button onClick={() => setPendingImport(null)}>取消匯入</button>
         </div>
       )}
+      <Suspense fallback={<p role="status">載入團隊功能…</p>}>
+        {teamStarted && (
+          <TeamWorkspace
+            open={teamOpen}
+            onClose={() => setTeamOpen(false)}
+            quote={q}
+            resetKey={resetKey}
+            onLoad={(loaded) => {
+              setQ(loaded);
+              setEditing("");
+              setUndo(null);
+              setPendingImport(null);
+              setReplace(null);
+              setMessage(
+                "已載入共用報價；修改後請同步，正式輸出由團隊頁核對最新核准版本。",
+              );
+            }}
+            onCanonical={(submitted, canonical) => {
+              setQ((current) =>
+                current.id === submitted.id
+                  ? { ...current, id: canonical.id }
+                  : current,
+              );
+            }}
+            onClear={() => {
+              setQ(newQuote());
+              setEditing("");
+              setResetKey((v) => v + 1);
+            }}
+          />
+        )}
+      </Suspense>
       <div className="workspace">
         <main>
           <section className="card">
@@ -857,7 +904,7 @@ export default function App() {
               </div>
             </div>
             <p className="helper">
-              這是人工核對紀錄，並非員工登入、主管權限或庫存預約。修改任何報價內容會取消最後一項核對。
+              此處只確認本機草稿資料。請按頁首「團隊／主管核准」登入及同步；正式報價須由主管核准後在團隊頁輸出。修改會取消最後人工核對，重新同步也會使原核准失效。
             </p>
             <Check
               label="如需配送，已分別確認送裝與回收費，並列入收送品項"
@@ -893,7 +940,7 @@ export default function App() {
           <section className="card">
             <h2>備份與匯入</h2>
             <p className="helper">
-              此版為本機草稿，沒有多人共用。備份含客戶資料，請依公司方式保存。
+              此處只備份本機草稿；多人共用請按頁首「團隊／主管核准」同步。備份含客戶資料，請依公司方式保存。
             </p>
             <div className="toolbar">
               <button
@@ -951,7 +998,7 @@ export default function App() {
           <div className="summary-top">
             <p className="eyebrow">即時報價摘要</p>
             <span className={"status " + (s.ready ? "ready" : "")}>
-              {s.ready ? "已人工確認" : "詢價草稿／待確認"}
+              {s.ready ? "資料已齊／待團隊核准" : "詢價草稿／待確認"}
             </span>
             <h2>{i.customer || "新租賃詢價"}</h2>
             <p className="order-id">
@@ -1007,7 +1054,7 @@ export default function App() {
             )}
             <button className="primary full" onClick={copy}>
               <Copy size={17} />
-              {s.ready ? "複製已確認報價" : "複製詢價草稿"}
+              複製本機草稿
             </button>
             <div className="output-buttons">
               <button
@@ -1020,7 +1067,7 @@ export default function App() {
               </button>
               <button onClick={() => window.print()}>
                 <Printer size={16} />
-                列印
+                列印草稿
               </button>
             </div>
           </div>

@@ -533,12 +533,14 @@ function overThreeYears(start: string, end: string) {
   date.setUTCFullYear(date.getUTCFullYear() + 3);
   return end > date.toISOString().slice(0, 10);
 }
-export function quoteText(q: Quote) {
-  const s = calculateQuote(q);
+export type OfficialApproval={revision:number;name:string;at:string;reason:string};
+export function quoteText(q: Quote,options:{totals?:ReturnType<typeof calculateQuote>;approval?:OfficialApproval}={}) {
+  const s = options.totals||calculateQuote(q);
   const i = q.inquiry;
   return [
-    `【永捷租賃${s.ready ? "報價（已人工確認）" : "詢價草稿／尚未確認"}】`,
-    `單號：${q.id}｜價目：原價保留 v1.0.0`,
+    `【永捷租賃${options.approval?"正式報價（主管已核准）":s.ready ? "報價草稿（資料已齊，待主管核准）" : "詢價草稿／尚未確認"}】`,
+    `單號：${q.id}${options.approval?'／第'+options.approval.revision+'版':''}｜價目：原價保留 v1.1.0`,
+    ...(options.approval?[`核准主管：${options.approval.name}｜時間：${new Date(options.approval.at).toLocaleString('zh-TW',{timeZone:'Asia/Taipei'})}`,`核准原因：${options.approval.reason}`]:['此為本機草稿；正式報價請由團隊頁核對最新核准版本後輸出。']),
     "租賃規則：所有租賃包含維修及耗材，送裝／回收另計，最低1天、最長3年。原印表機約定印量及超印費仍適用。",
     `客戶：${i.customer || "待填"}${i.contact ? "／" + i.contact : ""}`,
     `聯絡電話：${i.phone || "未填"}｜報價人員：${i.staff || "未填"}`,
