@@ -533,14 +533,124 @@ function overThreeYears(start: string, end: string) {
   date.setUTCFullYear(date.getUTCFullYear() + 3);
   return end > date.toISOString().slice(0, 10);
 }
-export type OfficialApproval={revision:number;name:string;at:string;reason:string};
-export function quoteText(q: Quote,options:{totals?:ReturnType<typeof calculateQuote>;approval?:OfficialApproval}={}) {
-  const s = options.totals||calculateQuote(q);
+export type OfficialApproval = {
+  revision: number;
+  name: string;
+  at: string;
+  reason: string;
+};
+export function quoteText(
+  q: Quote,
+  options: {
+    totals?: ReturnType<typeof calculateQuote>;
+    approval?: OfficialApproval;
+    internal?: boolean;
+  } = {},
+) {
+  if (options.internal) return detailedQuoteText(q, options);
+  const s = options.totals || calculateQuote(q),
+    i = q.inquiry;
+  const tax = { pending: "稅額待確認", included: "含稅", exclusive: "含5%稅" }[
+    i.tax
+  ];
+  return [
+    options.approval ? "【永捷租賃正式報價】" : "【永捷租賃報價草稿｜待確認】",
+    "單號：" +
+      q.id +
+      (options.approval ? "／第" + options.approval.revision + "版" : ""),
+    "客戶：" + (i.customer || "待填"),
+    "租期：" + (i.start || "待確認") + " ～ " + (i.end || "待確認"),
+    "",
+    ...q.lines.flatMap((l, n) => {
+      const r = s.rows[n],
+        p = PLANS.find((p) => p.id === l.planId);
+      const scope = l.scope.trim().replace(/^原方案[；：]?\s*/, "");
+      return [
+        n + 1 + ". " + (l.name || "待確認品項"),
+        "   " +
+          l.qty +
+          (l.kind === "equipment" ? "台" : "項") +
+          " × " +
+          l.periods +
+          (l.planId === "laser-cm" ? "色" : l.unit) +
+          "｜" +
+          (r.amount === null ? "待估" : money(r.amount)),
+        ...(scope ? ["   " + scope] : []),
+        ...(p?.usage !== undefined
+          ? ["   每台預估" + l.pages + "張；每台超印費" + money(r.usage)]
+          : []),
+        ...(l.start || l.end
+          ? ["   期間：" + (l.start || i.start) + " ～ " + (l.end || i.end)]
+          : []),
+      ];
+    }),
+    "",
+    ...(s.discount > 0
+      ? [
+          "品項小計：" + money(s.subtotal),
+          "設備租金優惠：−" + money(s.discount),
+        ]
+      : []),
+    ...(i.tax === "exclusive" ? ["稅額：" + money(s.tax)] : []),
+    (s.pending ? "目前已估合計" : "全租期費用") +
+      "：" +
+      money(s.total) +
+      "（" +
+      tax +
+      "）",
+    ...(s.pending ? ["另有" + s.pending + "項待估，未包含於合計。"] : []),
+    "押金另計：" +
+      (s.deposit === null
+        ? "待確認"
+        : s.deposit === 0
+          ? "免收"
+          : money(s.deposit)),
+    ...(i.payment.trim() ? ["付款：" + i.payment.trim()] : []),
+    "",
+    ...(i.delivery !== "待確認" ? ["交付：" + i.delivery] : []),
+    ...(i.address.trim()
+      ? ["地點：" + i.address + (i.access ? "／" + i.access : "")]
+      : []),
+    ...(i.readyAt ? ["交付時間：" + i.readyAt.replace("T", " ")] : []),
+    ...(!["正常預約", "交期待確認"].includes(i.urgency)
+      ? ["時效：" + i.urgency]
+      : []),
+    ...(i.validUntil ? ["報價有效至：" + i.validUntil] : []),
+    ...([i.software, i.network, i.notes].some((v) => v.trim())
+      ? [
+          "補充：" +
+            [i.software, i.network, i.notes].filter((v) => v.trim()).join("；"),
+        ]
+      : []),
+    "包含維修及耗材；送裝／回收另計。" +
+      (q.lines.some(
+        (l) => PLANS.find((p) => p.id === l.planId)?.usage !== undefined,
+      )
+        ? "列印額度及超印費依上述品項約定。"
+        : ""),
+    ...(options.approval
+      ? ["庫存、交期與續租異動，依雙方確認。"]
+      : ["此為草稿，非完整確定報價；費用、庫存與交期確認後另提供正式報價。"]),
+  ].join("\n");
+}
+function detailedQuoteText(
+  q: Quote,
+  options: {
+    totals?: ReturnType<typeof calculateQuote>;
+    approval?: OfficialApproval;
+  } = {},
+) {
+  const s = options.totals || calculateQuote(q);
   const i = q.inquiry;
   return [
-    `【永捷租賃${options.approval?"正式報價（主管已核准）":s.ready ? "報價草稿（資料已齊，待主管核准）" : "詢價草稿／尚未確認"}】`,
-    `單號：${q.id}${options.approval?'／第'+options.approval.revision+'版':''}｜價目：原價保留 v1.1.0`,
-    ...(options.approval?[`核准主管：${options.approval.name}｜時間：${new Date(options.approval.at).toLocaleString('zh-TW',{timeZone:'Asia/Taipei'})}`,`核准原因：${options.approval.reason}`]:['此為本機草稿；正式報價請由團隊頁核對最新核准版本後輸出。']),
+    `【永捷租賃${options.approval ? "正式報價（主管已核准）" : s.ready ? "報價草稿（資料已齊，待主管核准）" : "詢價草稿／尚未確認"}】`,
+    `單號：${q.id}${options.approval ? "／第" + options.approval.revision + "版" : ""}｜價目：原價保留 v1.1.0`,
+    ...(options.approval
+      ? [
+          `核准主管：${options.approval.name}｜時間：${new Date(options.approval.at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}`,
+          `核准原因：${options.approval.reason}`,
+        ]
+      : ["此為本機草稿；正式報價請由團隊頁核對最新核准版本後輸出。"]),
     "租賃規則：所有租賃包含維修及耗材，送裝／回收另計，最低1天、最長3年。原印表機約定印量及超印費仍適用。",
     `客戶：${i.customer || "待填"}${i.contact ? "／" + i.contact : ""}`,
     `聯絡電話：${i.phone || "未填"}｜報價人員：${i.staff || "未填"}`,

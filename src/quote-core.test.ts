@@ -289,9 +289,67 @@ test("malformed backups and duplicate item ids rejected without mutating current
 test("summary carries known/pending totals, service scope, periods, discount and separate deposit consistently", () => {
   const q = full();
   q.discount = { type: "amount", value: "100", reason: "核定半年專案" };
-  const t = quoteText(q);
+  const t = quoteText(q, { internal: true });
   assert.match(t, /全租期費用：NT\$ 500/);
   assert.match(t, /押金（不計入租金）：NT\$ 4,000/);
   assert.match(t, /核定半年專案/);
   assert.match(t, /報價草稿（資料已齊，待主管核准）/);
+});
+
+test("customer summary shows quoted override without internal pricing or approval reasons", () => {
+  const q = full();
+  q.lines = [makeLine("equipment", "pc-day")];
+  Object.assign(q.lines[0], {
+    override: "600",
+    overrideReason: "內部整備成本",
+  });
+  q.discount = { type: "amount", value: "100", reason: "內部議價底線" };
+  const t = quoteText(q);
+  assert.match(t, /全租期費用：NT\$ 500/);
+  assert.match(t, /押金另計：NT\$ 4,000/);
+  assert.ok(!t.includes("原單價"));
+  assert.ok(!t.includes("內部整備成本"));
+  assert.ok(!t.includes("內部議價底線"));
+  assert.ok(!t.includes("待確認："));
+  assert.ok(!t.includes("報價人員"));
+  const official = quoteText(q, {
+    approval: {
+      revision: 2,
+      name: "內部主管",
+      at: "2026-10-19T00:00:00Z",
+      reason: "內部底價核准",
+    },
+  });
+  assert.match(official, /正式報價/);
+  assert.match(official, /第2版/);
+  assert.ok(!official.includes("內部底價核准"));
+  assert.match(quoteText(q, { internal: true }), /內部整備成本/);
+});
+test("customer summary omits zero discount and empty optional sections", () => {
+  const q = full();
+  const t = quoteText(q);
+  for (const text of [
+    "優惠：",
+    "需求補充：無",
+    "正常預約",
+    "用途：",
+    "價目：",
+    "主管頁",
+    "租期1天",
+  ])
+    assert.ok(!t.includes(text), text);
+  assert.match(t, /包含維修及耗材/);
+  assert.match(t, /送裝／回收另計/);
+  assert.match(t, /草稿/);
+});
+test("customer summary retains pending amounts and explicitly marks unknown tax and deposit", () => {
+  const q = newQuote();
+  q.lines = [makeLine("network")];
+  q.lines[0].name = "網路工程";
+  const t = quoteText(q);
+  assert.match(t, /待估/);
+  assert.match(t, /另有1項待估，未包含於合計/);
+  assert.match(t, /稅額待確認/);
+  assert.match(t, /押金另計：待確認/);
+  assert.match(t, /非完整確定報價/);
 });

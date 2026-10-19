@@ -691,7 +691,7 @@ export default function TeamWorkspace({
                         展開此版明細（歷史唯讀，不代表最新核准）
                       </summary>
                       <pre>
-                        {quoteText(view.quote, { totals: view.totals })}
+                        {quoteText(view.quote, { totals: view.totals, internal: true })}
                       </pre>
                       {!!view.totals.checks.length && (
                         <ul className="errors">

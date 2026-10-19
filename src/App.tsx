@@ -206,7 +206,7 @@ export default function App() {
   async function copy() {
     try {
       await navigator.clipboard.writeText(text);
-      setMessage("已複製本機草稿；正式報價請由團隊頁輸出最新核准版本。");
+      setMessage("已複製客戶版草稿；正式報價請由團隊頁輸出最新核准版本。");
     } catch {
       setMessage("無法使用剪貼簿，請展開完整文字自行複製，或下載文字檔。");
     }
@@ -272,7 +272,7 @@ export default function App() {
           <div>
             <p className="eyebrow">永捷系統科技 · 內部報價工具</p>
             <h1>
-              租賃詢價與多品項報價 <span>v1.1.0</span>
+              租賃詢價與多品項報價 <span>v1.1.1</span>
             </h1>
             <p>先問需求，再逐項估價；特殊服務保留人工確認。</p>
           </div>
@@ -1054,7 +1054,7 @@ export default function App() {
             )}
             <button className="primary full" onClick={copy}>
               <Copy size={17} />
-              複製本機草稿
+              複製客戶版草稿
             </button>
             <div className="output-buttons">
               <button
@@ -1072,7 +1072,7 @@ export default function App() {
             </div>
           </div>
           <details className="text-preview">
-            <summary>完整報價文字（可自行複製）</summary>
+            <summary>客戶版報價文字（可自行複製）</summary>
             <pre>{text}</pre>
           </details>
         </aside>
