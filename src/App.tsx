@@ -1,881 +1,1055 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Calculator, Copy, Check, Info, Monitor, Printer, Laptop, Truck, ShieldAlert,
-  CheckCircle2, ChevronDown, Receipt
-} from 'lucide-react';
-
-// Types
-type Category = 'laser' | 'inkjet' | 'dot_matrix' | 'desktop' | 'laptop';
-type LaserType = 'bw_single' | 'bw_multi' | 'color_single' | 'color_multi';
-type InkjetType = 'bw_single' | 'bw_multi' | 'color_single' | 'color_multi';
-type DotMatrixType = 'lq310' | 'lq690c';
-type DesktopDuration = 'short' | 'month';
-type DesktopShortType = 'base' | 'monitor' | 'office365';
-type DesktopMonthType = 'office' | 'graphic' | 'custom_graphic';
-type LaptopType = 'office' | 'gaming';
-type LaptopDuration = 'short' | 'month';
-
-export default function App() {
-  const [category, setCategory] = useState<Category>('laser');
-  
-  // Laser state
-  const [laserType, setLaserType] = useState<LaserType>('bw_single');
-  const [laserPlan, setLaserPlan] = useState<string>('plan1');
-  const [laserDays, setLaserDays] = useState<number>(1);
-  const [laserColors, setLaserColors] = useState<number>(1);
-  const [laserBwPages, setLaserBwPages] = useState<number>(0);
-  const [laserColorPages, setLaserColorPages] = useState<number>(0);
-
-  // Inkjet state
-  const [inkjetType, setInkjetType] = useState<InkjetType>('bw_single');
-  const [inkjetDays, setInkjetDays] = useState<number>(1);
-  const [inkjetMonths, setInkjetMonths] = useState<number>(1);
-  const [inkjetBwPages, setInkjetBwPages] = useState<number>(0);
-
-  // Dot Matrix state
-  const [dotMatrixType, setDotMatrixType] = useState<DotMatrixType>('lq310');
-  const [dotMatrixDays, setDotMatrixDays] = useState<number>(1);
-
-  // Desktop state
-  const [desktopDuration, setDesktopDuration] = useState<DesktopDuration>('short');
-  const [desktopShortType, setDesktopShortType] = useState<DesktopShortType>('base');
-  const [desktopMonthType, setDesktopMonthType] = useState<DesktopMonthType>('office');
-  const [desktopDays, setDesktopDays] = useState<number>(1);
-  const [desktopMonths, setDesktopMonths] = useState<number>(1);
-
-  // Laptop state
-  const [laptopType, setLaptopType] = useState<LaptopType>('office');
-  const [laptopDuration, setLaptopDuration] = useState<LaptopDuration>('short');
-  const [laptopDays, setLaptopDays] = useState<number>(1);
-  const [laptopMonths, setLaptopMonths] = useState<number>(1);
-
-  // Global Add-ons
-  const [deliverySetup, setDeliverySetup] = useState<boolean>(false);
-  const [depositReminder, setDepositReminder] = useState<boolean>(false);
-  const [customSoftware, setCustomSoftware] = useState<boolean>(false);
-  const [customSoftwareFee, setCustomSoftwareFee] = useState<number>(0);
-
-  const [copied, setCopied] = useState(false);
-
-  // Constraints
-  useEffect(() => {
-    if (laptopType === 'gaming' && laptopDuration === 'short') {
-      setLaptopDuration('month');
-    }
-  }, [laptopType, laptopDuration]);
-
-  const summary = useMemo(() => {
-    let title = '';
-    let details: string[] = [];
-    let baseCost = 0;
-    let usageCost = 0;
-    const oneTimeCost = (deliverySetup ? 800 : 0) + (customSoftware ? customSoftwareFee : 0);
-    let deposit = depositReminder ? 2000 : 0;
-    
-    if (category === 'laser') {
-      title = '雷射印表機租賃';
-      if (laserType === 'bw_single') {
-         details.push(`設備：單功能黑白`);
-         details.push(`方案：日租 $100/日 (含 50 張)`);
-         details.push(`租期：${Math.max(1, laserDays)} 天`);
-         baseCost = 100 * Math.max(1, laserDays);
-         usageCost = Math.max(0, laserBwPages - 50) * 1;
-         if (usageCost > 0) details.push(`超印費用：$${usageCost.toLocaleString()} (${laserBwPages - 50}張 x $1)`);
-      } else if (laserType === 'bw_multi') {
-         details.push(`設備：多功能黑白`);
-         details.push(`方案：日租 $150/日 (含 50 張)`);
-         details.push(`租期：${Math.max(1, laserDays)} 天`);
-         baseCost = 150 * Math.max(1, laserDays);
-         usageCost = Math.max(0, laserBwPages - 50) * 3;
-         if (usageCost > 0) details.push(`超印費用：$${usageCost.toLocaleString()} (${laserBwPages - 50}張 x $3)`);
-      } else if (laserType === 'color_single') {
-         const planPrice = laserPlan === 'plan1' ? 100 : 200;
-         const planName = laserPlan === 'plan1' ? '基本租機 $100/日' : '基本租機 $200/日';
-         details.push(`設備：單功能彩色 (方案${laserPlan === 'plan1' ? '1' : '2'})`);
-         details.push(`方案：${planName} (依張數計價)`);
-         details.push(`租期：${Math.max(1, laserDays)} 天`);
-         baseCost = planPrice * Math.max(1, laserDays);
-         usageCost = (Math.max(0, laserBwPages) + Math.max(0, laserColorPages)) * 3;
-         if (usageCost > 0) details.push(`列印費用：$${usageCost.toLocaleString()} (${laserBwPages + laserColorPages}張 x $3)`);
-      } else if (laserType === 'color_multi') {
-         details.push(`設備：多功能彩色`);
-         details.push(`方案：買碳免買機 ($1,500/色)`);
-         details.push(`數量：${Math.max(1, laserColors)} 色`);
-         baseCost = 1500 * Math.max(1, laserColors);
-      }
-    } else if (category === 'inkjet') {
-      title = '噴墨印表機租賃';
-      if (inkjetType === 'bw_single') {
-         details.push(`設備：單功能黑白 (噴墨)`);
-         details.push(`方案：日租 $100/日 (含 50 張)`);
-         details.push(`租期：${Math.max(1, inkjetDays)} 天`);
-         baseCost = 100 * Math.max(1, inkjetDays);
-         usageCost = Math.floor(Math.max(0, inkjetBwPages - 50) * 0.3);
-         if (usageCost > 0) details.push(`超印費用：$${usageCost.toLocaleString()} (${inkjetBwPages - 50}張 x $0.3)`);
-      } else if (inkjetType === 'bw_multi') {
-         details.push(`設備：多功能黑白 (噴墨)`);
-         details.push(`方案：日租 $150/日 (含 50 張)`);
-         details.push(`租期：${Math.max(1, inkjetDays)} 天`);
-         baseCost = 150 * Math.max(1, inkjetDays);
-         usageCost = Math.floor(Math.max(0, inkjetBwPages - 50) * 0.3);
-         if (usageCost > 0) details.push(`超印費用：$${usageCost.toLocaleString()} (${inkjetBwPages - 50}張 x $0.3)`);
-      } else if (inkjetType === 'color_single') {
-         details.push(`設備：單功能彩色 (噴墨)`);
-         details.push(`方案：月租 $1,500/月`);
-         details.push(`租期：${Math.max(1, inkjetMonths)} 個月`);
-         baseCost = 1500 * Math.max(1, inkjetMonths);
-      } else if (inkjetType === 'color_multi') {
-         details.push(`設備：多功能彩色 (噴墨)`);
-         details.push(`方案：月租 $1,500/月`);
-         details.push(`租期：${Math.max(1, inkjetMonths)} 個月`);
-         baseCost = 1500 * Math.max(1, inkjetMonths);
-      }
-    } else if (category === 'dot_matrix') {
-      title = '點陣印表機租賃';
-      if (dotMatrixType === 'lq310') {
-         details.push(`設備：LQ310類似後進紙入門規格`);
-         details.push(`方案：日租 $100/日 (含每日 100 張)`);
-         details.push(`租期：${Math.max(1, dotMatrixDays)} 天`);
-         baseCost = 100 * Math.max(1, dotMatrixDays);
-      } else if (dotMatrixType === 'lq690c') {
-         details.push(`設備：LQ690類似(前)後進紙高階規格`);
-         details.push(`方案：日租 $200/日 (含每日 100 張)`);
-         details.push(`租期：${Math.max(1, dotMatrixDays)} 天`);
-         baseCost = 200 * Math.max(1, dotMatrixDays);
-      }
-    } else if (category === 'desktop') {
-      title = '桌上型電腦租賃';
-      if (desktopDuration === 'short') {
-        let price = 100;
-        let name = '文書桌機';
-        if (desktopShortType === 'monitor') { price = 200; name = '文書桌機 (含螢幕)'; }
-        if (desktopShortType === 'office365') { price = 300; name = '文書桌機 (含 Office365)'; }
-        if (depositReminder) deposit = 4000;
-        details.push(`設備：${name}`);
-        details.push(`方案：日租 $${price}/日`);
-        details.push(`租期：${Math.max(1, desktopDays)} 天`);
-        baseCost = price * Math.max(1, desktopDays);
-      } else {
-        let price = 600;
-        let name = '文書庫存桌機 (8代內 CPU + 24吋螢幕)';
-        if (depositReminder) deposit = 4000;
-        if (desktopMonthType === 'graphic') { 
-            price = 1000; 
-            name = '繪圖庫存桌機 (9代內 CPU + 24吋螢幕)'; 
-            if (depositReminder) deposit = 8000; 
-        } else if (desktopMonthType === 'custom_graphic') {
-            price = 2000;
-            name = '客製化繪圖桌機 (9代內+32G+RTX獨顯+24吋螢幕)';
-            if (depositReminder) deposit = 12000;
-        }
-        details.push(`設備：${name}`);
-        details.push(`方案：月租 $${price}/月`);
-        details.push(`租期：${Math.max(1, desktopMonths)} 個月`);
-        baseCost = price * Math.max(1, desktopMonths);
-      }
-    } else if (category === 'laptop') {
-      title = '筆記型電腦租賃';
-      const typeName = laptopType === 'office' ? '文書筆電' : '電競筆電';
-      if (depositReminder) deposit = laptopType === 'office' ? 4000 : 8000;
-      details.push(`設備：${typeName}`);
-      
-      if (laptopDuration === 'short') {
-         const validDays = Math.min(15, Math.max(1, laptopDays));
-         details.push(`方案：短租方案 (15天內)`);
-         details.push(`租期：${validDays} 天`);
-         baseCost = 850 + (validDays - 1) * 150;
-      } else {
-         const price = laptopType === 'office' ? 1500 : 3000;
-         details.push(`方案：月租方案 ($${price.toLocaleString()}/月)`);
-         details.push(`租期：${Math.max(1, laptopMonths)} 個月`);
-         baseCost = price * Math.max(1, laptopMonths);
-      }
-    }
-
-    const totalCost = baseCost + usageCost + oneTimeCost;
-
-    return { title, details, baseCost, usageCost, oneTimeCost, totalCost, deposit };
-  }, [
-    category, 
-    laserType, laserPlan, laserDays, laserColors, laserBwPages, laserColorPages,
-    inkjetType, inkjetDays, inkjetMonths, inkjetBwPages,
-    dotMatrixType, dotMatrixDays,
-    desktopDuration, desktopShortType, desktopMonthType, desktopDays, desktopMonths,
-    laptopType, laptopDuration, laptopDays, laptopMonths,
-    deliverySetup, depositReminder, customSoftware, customSoftwareFee
-  ]);
-
-  const handleCopy = () => {
-     let oneTimeStr = '';
-     if (deliverySetup) oneTimeStr += `\n運送與設定費：$800`;
-     if (customSoftware) oneTimeStr += `\n客製化軟體費：$${customSoftwareFee.toLocaleString()}`;
-
-     const text = `【租賃報價摘要】\n項目：${summary.title}\n\n[規格與方案]\n${summary.details.map(d => '• ' + d).join('\n')}\n\n[費用明細]\n基本租金：$${summary.baseCost.toLocaleString()}${summary.usageCost > 0 ? `\n超印費用：$${summary.usageCost.toLocaleString()}` : ''}${oneTimeStr}\n-------------------\n預估總費用：$${summary.totalCost.toLocaleString()}${depositReminder ? `\n\n(註：需另收取設備押金 $${summary.deposit.toLocaleString()} / 台)` : ''}`;
-     
-     navigator.clipboard.writeText(text).then(() => {
-       setCopied(true);
-       setTimeout(() => setCopied(false), 2000);
-     });
-  };
-
+import React, { useRef, useState } from "react";
+import {
+  Calculator,
+  Plus,
+  Phone,
+  ClipboardList,
+  Copy,
+  Save,
+  Download,
+  BookOpen,
+  Printer,
+  RotateCcw,
+} from "lucide-react";
+import {
+  PLANS,
+  KIND_NAMES,
+  newQuote,
+  makeLine,
+  calculateQuote,
+  quoteText,
+  restoreQuote,
+  money,
+  type Quote,
+  type Inquiry,
+  type Line,
+  type Kind,
+} from "./quote-core";
+const STORAGE = "yj_rental_inquiry_v1";
+const MANUAL: Record<Kind, string[]> = {
+  equipment: [
+    "獨立螢幕",
+    "路由器／交換器",
+    "Wi-Fi基地台 AP",
+    "其他設備／特殊租期",
+  ],
+  software: [
+    "Office 授權（另確認適用方式）",
+    "客戶授權軟體代安裝",
+    "繪圖／3D軟體專案",
+    "整批環境設定",
+  ],
+  network: ["網路配線", "Wi-Fi規劃與設定", "現場連線測試", "工程師駐點支援"],
+  delivery: [
+    "原專人運送與網路驅動設定（800元／次）",
+    "專人送裝",
+    "到期回收",
+    "物流來回",
+    "額外搬運／設定",
+  ],
+  urgent: ["優先整備", "當日專送調度", "夜間／假日施工", "大量臨時需求"],
+  custom: ["特殊項目人工報價"],
+};
+function Field({
+  label,
+  children,
+  hint,
+}: {
+  label: string;
+  children: React.ReactNode;
+  hint?: string;
+}) {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        <header className="mb-10 text-center md:text-left flex flex-col md:flex-row items-center gap-5">
-          <div className="p-3.5 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-200">
-            <Calculator className="w-8 h-8" />
-          </div>
+    <label className="field">
+      <span>{label}</span>
+      {children}
+      {hint && <small>{hint}</small>}
+    </label>
+  );
+}
+function Check({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="check">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span>{label}</span>
+    </label>
+  );
+}
+function download(name: string, text: string, type: string) {
+  const u = URL.createObjectURL(new Blob([text], { type }));
+  const a = document.createElement("a");
+  a.href = u;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(u), 1000);
+}
+const HELP = [
+  "先問用途、設備數量、起迄日期、地點與最晚完成時間。所有租賃包含維修與耗材，送裝及回收另計，租期1天至3年。",
+  "一張單可加入多種設備與服務；原方案沿用原價，特殊設備或沒有原價的租期用人工報價，未知留空。",
+  "每項填數量、天數／月數、範圍。半年填6個月、全年填12個月；日期不自動換算計費，需逐項確認。不同品項可設定不同日期。",
+  "軟體授權與安裝、網路設備與配線工程分開列。已含螢幕或Office的套裝不可重複加價；軟體授權來源另確認。",
+  "急件先確認庫存、人員與交期，再加品項填費用及承諾時間；同一段工時不可重複收費。",
+  "優惠只套用勾選的設備基本租金，不含超印、耗材採購、軟體、收送、工程及急件。金額與百分比擇一，填原因。",
+  "確認稅額、押金、付款安排、送裝與回收費用。勾選交付方式不會自動產生費用，請加品項。",
+  "填齊並完成人工核對後才標示已確認；任何修改都取消最後核對。有待估時可輸出詢價草稿，但不能當完整確定報價。",
+  "保存草稿只在此瀏覽器，不是多人同步。下載JSON可備份匯入；另開或匯入前先保存。此版沒有主管帳號權限或庫存預約，依公司流程核定。",
+  "複製、列印與文字下載使用同一份明細。報價不等於保留設備；付款、交付與續租依確認約定。",
+];
+export default function App() {
+  const [q, setQ] = useState<Quote>(newQuote);
+  const [kind, setKind] = useState<Kind>("equipment");
+  const [planId, setPlanId] = useState(PLANS[0].id);
+  const [manual, setManual] = useState(MANUAL.equipment[0]);
+  const [editing, setEditing] = useState("");
+  const [undo, setUndo] = useState<Line | null>(null);
+  const [replace, setReplace] = useState<"new" | "load" | null>(null);
+  const [message, setMessage] = useState(
+    "開始接聽需求，未知費用先留待估。保存草稿只在本機瀏覽器。",
+  );
+  const [paste, setPaste] = useState("");
+  const [pendingImport, setPendingImport] = useState<Quote | null>(null);
+  const file = useRef<HTMLInputElement>(null),
+    help = useRef<HTMLDialogElement>(null),
+    helpBtn = useRef<HTMLButtonElement>(null);
+  const i = q.inquiry;
+  const s = calculateQuote(q);
+  const text = quoteText(q);
+  function edit(fn: (v: Quote) => Quote) {
+    setQ((prev) => {
+      const next = fn(prev);
+      return { ...next, inquiry: { ...next.inquiry, reviewed: false } };
+    });
+  }
+  function iq(key: keyof Inquiry, value: string | boolean) {
+    if (key === "reviewed")
+      setQ((prev) => ({
+        ...prev,
+        inquiry: { ...prev.inquiry, reviewed: value as boolean },
+      }));
+    else
+      edit((prev) => ({ ...prev, inquiry: { ...prev.inquiry, [key]: value } }));
+  }
+  function line(id: string, patch: Partial<Line>) {
+    edit((prev) => ({
+      ...prev,
+      lines: prev.lines.map((l) => (l.id === id ? { ...l, ...patch } : l)),
+    }));
+  }
+  function add() {
+    if (q.lines.length >= 100) {
+      setMessage("最多100項，請另開報價");
+      return;
+    }
+    const l = makeLine(
+      kind,
+      kind === "equipment" && planId !== "manual" ? planId : "",
+    );
+    if (!l.planId) {
+      l.name = manual;
+      if (kind === "equipment") l.unit = "天";
+      if (kind === "delivery" && manual.startsWith("原專人")) {
+        l.price = "800";
+        l.scope =
+          "原800元／次運送與網路驅動設定；請註明本次涵蓋地點與設定台數，回收另計。";
+      }
+    }
+    edit((prev) => ({ ...prev, lines: [...prev.lines, l] }));
+    setEditing(l.id);
+    setMessage("已加入「" + l.name + "」，請確認數量、期數及範圍。");
+  }
+  function save() {
+    try {
+      localStorage.setItem(STORAGE, JSON.stringify(q));
+      setMessage("本機草稿已保存；不會自動共用給同事。換電腦前請下載備份。");
+    } catch {
+      setMessage("保存失敗：儲存空間不足或被停用，請立即下載備份。");
+    }
+  }
+  function replaceNow() {
+    try {
+      if (replace === "new") setQ(newQuote());
+      else {
+        const v = localStorage.getItem(STORAGE);
+        if (!v) throw Error("沒有已保存的草稿");
+        setQ(restoreQuote(v));
+      }
+      setEditing("");
+      setUndo(null);
+      setMessage("畫面已替換，尚未覆寫本機保存；請重新核對。");
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "載入失敗");
+    }
+    setReplace(null);
+  }
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setMessage(
+        s.ready ? "已複製人工確認報價。" : "已複製詢價草稿，仍有待確認項目。",
+      );
+    } catch {
+      setMessage("無法使用剪貼簿，請展開完整文字自行複製，或下載文字檔。");
+    }
+  }
+  function importText(value: string) {
+    try {
+      if (value.length > 2000000) throw Error("備份過大");
+      setPendingImport(restoreQuote(value));
+      setMessage("備份格式已通過，請在頁首確認是否替換目前畫面。");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "匯入失敗，原內容保留",
+      );
+    }
+  }
+  const input = (
+    key: keyof Inquiry,
+    label: string,
+    type = "text",
+    placeholder = "",
+  ) => (
+    <Field label={label}>
+      <input
+        type={type}
+        value={String(i[key])}
+        maxLength={500}
+        placeholder={placeholder}
+        onInput={
+          type === "date" || type === "datetime-local"
+            ? (e) => iq(key, e.currentTarget.value)
+            : undefined
+        }
+        onChange={(e) => iq(key, e.target.value)}
+      />
+    </Field>
+  );
+  const area = (key: keyof Inquiry, label: string, placeholder = "") => (
+    <Field label={label}>
+      <textarea
+        value={String(i[key])}
+        maxLength={2000}
+        placeholder={placeholder}
+        onChange={(e) => iq(key, e.target.value)}
+      />
+    </Field>
+  );
+  const select = (key: keyof Inquiry, label: string, options: string[]) => (
+    <Field label={label}>
+      <select value={String(i[key])} onChange={(e) => iq(key, e.target.value)}>
+        {options.map((o) => (
+          <option key={o}>{o}</option>
+        ))}
+      </select>
+    </Field>
+  );
+  return (
+    <div className="app-shell">
+      <header className="app-header">
+        <div className="brand">
+          <span className="brand-icon">
+            <Calculator size={26} />
+          </span>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">設備租賃費用試算器</h1>
-            <p className="text-slate-500 mt-1.5 text-sm md:text-base">依據您的需求，快速評估各類型辦公設備的租賃方案及預估費用</p>
+            <p className="eyebrow">永捷系統科技 · 內部報價工具</p>
+            <h1>
+              租賃詢價與多品項報價 <span>v1.0.0</span>
+            </h1>
+            <p>先問需求，再逐項估價；特殊服務保留人工確認。</p>
           </div>
-        </header>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
-          {/* Left Column: Controls */}
-          <div className="lg:col-span-7 xl:col-span-8 space-y-6">
-            
-            {/* Category Tabs */}
-            <div className="bg-white p-1.5 rounded-2xl shadow-sm border border-slate-200 grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-row gap-1.5 flex-wrap">
-              <button 
-                onClick={() => setCategory('laser')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-2 rounded-xl text-sm font-semibold transition-all ${category === 'laser' ? 'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-600/20' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}
-              >
-                <Printer className="w-4 h-4 shrink-0" />
-                <span className="truncate">雷射印表機</span>
-              </button>
-              <button 
-                onClick={() => setCategory('inkjet')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-2 rounded-xl text-sm font-semibold transition-all ${category === 'inkjet' ? 'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-600/20' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}
-              >
-                <Printer className="w-4 h-4 shrink-0" />
-                <span className="truncate">噴墨印表機</span>
-              </button>
-              <button 
-                onClick={() => setCategory('dot_matrix')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-2 rounded-xl text-sm font-semibold transition-all ${category === 'dot_matrix' ? 'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-600/20' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}
-              >
-                <Printer className="w-4 h-4 shrink-0" />
-                <span className="truncate">點陣印表機</span>
-              </button>
-              <button 
-                onClick={() => setCategory('desktop')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-2 rounded-xl text-sm font-semibold transition-all ${category === 'desktop' ? 'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-600/20' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}
-              >
-                <Monitor className="w-4 h-4 shrink-0" />
-                <span className="truncate">桌上型電腦</span>
-              </button>
-              <button 
-                onClick={() => setCategory('laptop')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-2 rounded-xl text-sm font-semibold transition-all ${category === 'laptop' ? 'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-600/20' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}
-              >
-                <Laptop className="w-4 h-4 shrink-0" />
-                <span className="truncate">筆記型電腦</span>
-              </button>
-            </div>
-
-            {/* Configuration Card */}
-            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="p-6 md:p-8">
-                <h2 className="text-xl font-bold mb-6 flex items-center gap-2.5 text-slate-800">
-                  <CheckCircle2 className="w-5 h-5 text-blue-600" />
-                  規格與方案設定
-                </h2>
-
-                {/* --- Category: Laser Printer --- */}
-                {category === 'laser' && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="space-y-3">
-                      <label className="block text-sm font-semibold text-slate-700">選擇雷射印表機類型</label>
-                      <div className="relative">
-                        <select 
-                          value={laserType} 
-                          onChange={e => setLaserType(e.target.value as LaserType)}
-                          className="w-full appearance-none bg-slate-50 border border-slate-300 text-slate-900 rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium cursor-pointer"
-                        >
-                          <option value="bw_single">單功能黑白</option>
-                          <option value="bw_multi">多功能黑白</option>
-                          <option value="color_single">單功能彩色</option>
-                          <option value="color_multi">多功能彩色</option>
-                        </select>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-                      </div>
-                    </div>
-
-                    {(laserType === 'bw_single' || laserType === 'bw_multi') && (
-                      <>
-                        <div className="space-y-3">
-                          <label className="block text-sm font-semibold text-slate-700">方案內容</label>
-                          <div className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 flex items-start gap-3">
-                            <Info className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
-                            <div>
-                              <div className="font-bold text-slate-900">
-                                {laserType === 'bw_single' ? '日租 $100 / 日' : '日租 $150 / 日'}
-                              </div>
-                              <div className="text-sm text-slate-500 mt-1.5 leading-relaxed">含印量 50 張。每張超出收取 {laserType === 'bw_single' ? '$1' : '$3'}。</div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="space-y-3">
-                          <label className="block text-sm font-semibold text-slate-700">租賃天數</label>
-                          <div className="relative">
-                            <input type="number" min="1" value={laserDays} onChange={e => setLaserDays(parseInt(e.target.value) || 1)} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl pl-4 pr-12 py-3.5 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium" />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">天</span>
-                          </div>
-                        </div>
-                        <div className="pt-6 mt-6 border-t border-slate-100">
-                          <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-                            <Receipt className="w-4 h-4 text-slate-500"/> 預估印量 (選填，超出將計費)
-                          </h3>
-                          <div className="space-y-2">
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">預估黑白張數</label>
-                            <div className="relative">
-                              <input type="number" min="0" value={laserBwPages} onChange={e => setLaserBwPages(parseInt(e.target.value) || 0)} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl pl-4 pr-12 py-3 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium" />
-                              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">張</span>
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {laserType === 'color_single' && (
-                      <>
-                        <div className="space-y-3">
-                          <label className="block text-sm font-semibold text-slate-700">選擇方案</label>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <label className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${laserPlan === 'plan1' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-blue-300'}`}>
-                              <div>
-                                <div className="font-bold text-slate-900">方案 1</div>
-                                <div className="text-sm text-slate-500 mt-1">基本租機 $100/日 (無含印量)</div>
-                              </div>
-                              <input type="radio" name="laserPlan" value="plan1" checked={laserPlan === 'plan1'} onChange={() => setLaserPlan('plan1')} className="sr-only" />
-                              {laserPlan === 'plan1' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                            </label>
-                            <label className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${laserPlan === 'plan2' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-blue-300'}`}>
-                              <div>
-                                <div className="font-bold text-slate-900">方案 2</div>
-                                <div className="text-sm text-slate-500 mt-1">基本租機 $200/日 (無含印量)</div>
-                              </div>
-                              <input type="radio" name="laserPlan" value="plan2" checked={laserPlan === 'plan2'} onChange={() => setLaserPlan('plan2')} className="sr-only" />
-                              {laserPlan === 'plan2' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                            </label>
-                          </div>
-                          <div className="text-sm text-slate-500 mt-1 pl-1">註：依張計價，每張 $3。</div>
-                        </div>
-                        <div className="space-y-3">
-                          <label className="block text-sm font-semibold text-slate-700">租賃天數</label>
-                          <div className="relative">
-                            <input type="number" min="1" value={laserDays} onChange={e => setLaserDays(parseInt(e.target.value) || 1)} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl pl-4 pr-12 py-3.5 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium" />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">天</span>
-                          </div>
-                        </div>
-                        <div className="pt-6 mt-6 border-t border-slate-100">
-                          <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-                            <Receipt className="w-4 h-4 text-slate-500"/> 預估印量 (選填，依張計費)
-                          </h3>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                            <div className="space-y-2">
-                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">黑白張數</label>
-                              <div className="relative">
-                                <input type="number" min="0" value={laserBwPages} onChange={e => setLaserBwPages(parseInt(e.target.value) || 0)} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl pl-4 pr-12 py-3 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium" />
-                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">張</span>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">彩色張數</label>
-                              <div className="relative">
-                                <input type="number" min="0" value={laserColorPages} onChange={e => setLaserColorPages(parseInt(e.target.value) || 0)} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl pl-4 pr-12 py-3 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium" />
-                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">張</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {laserType === 'color_multi' && (
-                      <>
-                        <div className="space-y-3">
-                          <label className="block text-sm font-semibold text-slate-700">方案內容</label>
-                          <div className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 flex items-start gap-3">
-                            <Info className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
-                            <div>
-                              <div className="font-bold text-slate-900">買碳免買機 ($1,500 / 色)</div>
-                              <div className="text-sm text-slate-500 mt-1.5 leading-relaxed">依碳粉數量計價。</div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="space-y-3">
-                          <label className="block text-sm font-semibold text-slate-700">購買顏色數量</label>
-                          <div className="relative">
-                            <input type="number" min="1" value={laserColors} onChange={e => setLaserColors(parseInt(e.target.value) || 1)} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl pl-4 pr-14 py-3.5 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium" />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">色</span>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {/* --- Category: Inkjet Printer --- */}
-                {category === 'inkjet' && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="space-y-3">
-                      <label className="block text-sm font-semibold text-slate-700">選擇噴墨印表機類型</label>
-                      <div className="relative">
-                        <select 
-                          value={inkjetType} 
-                          onChange={e => setInkjetType(e.target.value as InkjetType)}
-                          className="w-full appearance-none bg-slate-50 border border-slate-300 text-slate-900 rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium cursor-pointer"
-                        >
-                          <option value="bw_single">單功能黑白</option>
-                          <option value="bw_multi">多功能黑白</option>
-                          <option value="color_single">單功能彩色</option>
-                          <option value="color_multi">多功能彩色</option>
-                        </select>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-                      </div>
-                    </div>
-
-                    {(inkjetType === 'bw_single' || inkjetType === 'bw_multi') && (
-                      <>
-                        <div className="space-y-3">
-                          <label className="block text-sm font-semibold text-slate-700">方案內容</label>
-                          <div className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 flex items-start gap-3">
-                            <Info className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
-                            <div>
-                              <div className="font-bold text-slate-900">
-                                {inkjetType === 'bw_single' ? '日租 $100 / 日' : '日租 $150 / 日'}
-                              </div>
-                              <div className="text-sm text-slate-500 mt-1.5 leading-relaxed">含印量 50 張。每張超出收取 $0.3。</div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="space-y-3">
-                          <label className="block text-sm font-semibold text-slate-700">租賃天數</label>
-                          <div className="relative">
-                            <input type="number" min="1" value={inkjetDays} onChange={e => setInkjetDays(parseInt(e.target.value) || 1)} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl pl-4 pr-12 py-3.5 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium" />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">天</span>
-                          </div>
-                        </div>
-                        <div className="pt-6 mt-6 border-t border-slate-100">
-                          <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-                            <Receipt className="w-4 h-4 text-slate-500"/> 預估印量 (選填，超出將計費)
-                          </h3>
-                          <div className="space-y-2">
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">預估黑白張數</label>
-                            <div className="relative">
-                              <input type="number" min="0" value={inkjetBwPages} onChange={e => setInkjetBwPages(parseInt(e.target.value) || 0)} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl pl-4 pr-12 py-3 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium" />
-                              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">張</span>
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {(inkjetType === 'color_single' || inkjetType === 'color_multi') && (
-                      <>
-                        <div className="space-y-3">
-                          <label className="block text-sm font-semibold text-slate-700">方案內容</label>
-                          <div className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 flex items-start gap-3">
-                            <Info className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
-                            <div>
-                              <div className="font-bold text-slate-900">月租 $1,500 / 月</div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="space-y-3">
-                          <label className="block text-sm font-semibold text-slate-700">租賃月數</label>
-                          <div className="relative">
-                            <input type="number" min="1" value={inkjetMonths} onChange={e => setInkjetMonths(parseInt(e.target.value) || 1)} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl pl-4 pr-14 py-3.5 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium" />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">個月</span>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {/* --- Category: Dot Matrix Printer --- */}
-                {category === 'dot_matrix' && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="space-y-3">
-                      <label className="block text-sm font-semibold text-slate-700">選擇設備類型</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <label className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${dotMatrixType === 'lq310' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-blue-300'}`}>
-                          <div>
-                            <div className="font-bold text-slate-900">LQ310類似後進紙入門規格</div>
-                            <div className="text-sm text-slate-500 mt-1">$100 / 日</div>
-                          </div>
-                          <input type="radio" name="dotMatrixType" value="lq310" checked={dotMatrixType === 'lq310'} onChange={() => setDotMatrixType('lq310')} className="sr-only" />
-                          {dotMatrixType === 'lq310' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                        </label>
-                        <label className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${dotMatrixType === 'lq690c' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-blue-300'}`}>
-                          <div>
-                            <div className="font-bold text-slate-900">LQ690類似(前)後進紙高階規格</div>
-                            <div className="text-sm text-slate-500 mt-1">$200 / 日</div>
-                          </div>
-                          <input type="radio" name="dotMatrixType" value="lq690c" checked={dotMatrixType === 'lq690c'} onChange={() => setDotMatrixType('lq690c')} className="sr-only" />
-                          {dotMatrixType === 'lq690c' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                        </label>
-                      </div>
-                      <div className="text-sm text-slate-500 mt-1 pl-1 flex items-center gap-1.5">
-                         <Info className="w-4 h-4" /> 含每日 100 張印量，超過需事前雙方協議。
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <label className="block text-sm font-semibold text-slate-700">租賃天數</label>
-                      <div className="relative">
-                        <input type="number" min="1" value={dotMatrixDays} onChange={e => setDotMatrixDays(parseInt(e.target.value) || 1)} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl pl-4 pr-12 py-3.5 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium" />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">天</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* --- Category: Desktop --- */}
-                {category === 'desktop' && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    
-                    <div className="space-y-3">
-                      <label className="block text-sm font-semibold text-slate-700">租期類型</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <label className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${desktopDuration === 'short' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-blue-300'}`}>
-                          <div>
-                            <div className="font-bold text-slate-900">短租 (按天計費)</div>
-                          </div>
-                          <input type="radio" name="desktopDuration" value="short" checked={desktopDuration === 'short'} onChange={() => setDesktopDuration('short')} className="sr-only" />
-                          {desktopDuration === 'short' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                        </label>
-                        <label className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${desktopDuration === 'month' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-blue-300'}`}>
-                          <div>
-                            <div className="font-bold text-slate-900">長租 (按月計費)</div>
-                          </div>
-                          <input type="radio" name="desktopDuration" value="month" checked={desktopDuration === 'month'} onChange={() => setDesktopDuration('month')} className="sr-only" />
-                          {desktopDuration === 'month' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                        </label>
-                      </div>
-                    </div>
-
-                    {desktopDuration === 'short' ? (
-                      <>
-                        <div className="space-y-3">
-                          <label className="block text-sm font-semibold text-slate-700">選擇方案</label>
-                          <div className="grid grid-cols-1 gap-3">
-                            <label className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${desktopShortType === 'base' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-blue-300'}`}>
-                              <div>
-                                <div className="font-bold text-slate-900">文書桌機</div>
-                                <div className="text-sm text-slate-500 mt-1">$100 / 日</div>
-                              </div>
-                              <input type="radio" name="desktopShortType" value="base" checked={desktopShortType === 'base'} onChange={() => setDesktopShortType('base')} className="sr-only" />
-                              {desktopShortType === 'base' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                            </label>
-                            <label className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${desktopShortType === 'monitor' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-blue-300'}`}>
-                              <div>
-                                <div className="font-bold text-slate-900">文書桌機 + 螢幕</div>
-                                <div className="text-sm text-slate-500 mt-1">$200 / 日</div>
-                              </div>
-                              <input type="radio" name="desktopShortType" value="monitor" checked={desktopShortType === 'monitor'} onChange={() => setDesktopShortType('monitor')} className="sr-only" />
-                              {desktopShortType === 'monitor' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                            </label>
-                            <label className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${desktopShortType === 'office365' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-blue-300'}`}>
-                              <div>
-                                <div className="font-bold text-slate-900">文書桌機 + 螢幕 + Office365</div>
-                                <div className="text-sm text-slate-500 mt-1">$300 / 日</div>
-                              </div>
-                              <input type="radio" name="desktopShortType" value="office365" checked={desktopShortType === 'office365'} onChange={() => setDesktopShortType('office365')} className="sr-only" />
-                              {desktopShortType === 'office365' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                            </label>
-                          </div>
-                          <div className="text-sm text-amber-600 mt-1 pl-1 flex items-center gap-1.5">
-                            <Info className="w-4 h-4" /> 租賃超過 1 個月需另議合約。電競系統不提供短租。
-                          </div>
-                        </div>
-                        <div className="space-y-3">
-                          <label className="block text-sm font-semibold text-slate-700">租賃天數</label>
-                          <div className="relative">
-                            <input type="number" min="1" value={desktopDays} onChange={e => setDesktopDays(parseInt(e.target.value) || 1)} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl pl-4 pr-12 py-3.5 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium" />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">天</span>
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="space-y-3">
-                          <label className="block text-sm font-semibold text-slate-700">選擇庫存機等級</label>
-                          <div className="grid grid-cols-1 gap-3">
-                            <label className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${desktopMonthType === 'office' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-blue-300'}`}>
-                              <div>
-                                <div className="font-bold text-slate-900">文書庫存桌機</div>
-                                <div className="text-sm text-slate-500 mt-1">8代內 CPU + 24吋螢幕 ｜ $600 / 月</div>
-                              </div>
-                              <input type="radio" name="desktopMonthType" value="office" checked={desktopMonthType === 'office'} onChange={() => setDesktopMonthType('office')} className="sr-only" />
-                              {desktopMonthType === 'office' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                            </label>
-                            <label className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${desktopMonthType === 'graphic' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-blue-300'}`}>
-                              <div>
-                                <div className="font-bold text-slate-900">繪圖庫存桌機</div>
-                                <div className="text-sm text-slate-500 mt-1">9代內 CPU + 24吋螢幕 ｜ $1,000 / 月</div>
-                              </div>
-                              <input type="radio" name="desktopMonthType" value="graphic" checked={desktopMonthType === 'graphic'} onChange={() => setDesktopMonthType('graphic')} className="sr-only" />
-                              {desktopMonthType === 'graphic' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                            </label>
-                            <label className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${desktopMonthType === 'custom_graphic' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-blue-300'}`}>
-                              <div>
-                                <div className="font-bold text-slate-900">客製化繪圖桌機</div>
-                                <div className="text-sm text-slate-500 mt-1">9代內+32G+RTX獨顯+24吋螢幕 ｜ $2,000 / 月</div>
-                              </div>
-                              <input type="radio" name="desktopMonthType" value="custom_graphic" checked={desktopMonthType === 'custom_graphic'} onChange={() => setDesktopMonthType('custom_graphic')} className="sr-only" />
-                              {desktopMonthType === 'custom_graphic' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                            </label>
-                          </div>
-                        </div>
-                        <div className="space-y-3">
-                          <label className="block text-sm font-semibold text-slate-700">租賃月數</label>
-                          <div className="relative">
-                            <input type="number" min="1" value={desktopMonths} onChange={e => setDesktopMonths(parseInt(e.target.value) || 1)} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl pl-4 pr-14 py-3.5 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium" />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">個月</span>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {/* --- Category: Laptop --- */}
-                {category === 'laptop' && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="space-y-3">
-                      <label className="block text-sm font-semibold text-slate-700">設備規格</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <label className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${laptopType === 'office' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-blue-300'}`}>
-                          <div>
-                            <div className="font-bold text-slate-900">文書筆電</div>
-                            <div className="text-sm text-slate-500 mt-1">提供短租與月租方案</div>
-                          </div>
-                          <input type="radio" name="laptopType" value="office" checked={laptopType === 'office'} onChange={() => setLaptopType('office')} className="sr-only" />
-                          {laptopType === 'office' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                        </label>
-                        <label className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${laptopType === 'gaming' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-blue-300'}`}>
-                          <div>
-                            <div className="font-bold text-slate-900">電競筆電</div>
-                            <div className="text-sm text-slate-500 mt-1">僅限月租方案</div>
-                          </div>
-                          <input type="radio" name="laptopType" value="gaming" checked={laptopType === 'gaming'} onChange={() => setLaptopType('gaming')} className="sr-only" />
-                          {laptopType === 'gaming' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                        </label>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <label className="block text-sm font-semibold text-slate-700">租期類型</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <label className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${laptopType === 'gaming' ? 'opacity-50 cursor-not-allowed border-slate-200 bg-slate-50' : (laptopDuration === 'short' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-blue-300')}`}>
-                          <div>
-                            <div className="font-bold text-slate-900">短租方案</div>
-                            <div className="text-sm text-slate-500 mt-1">15天內短租特惠</div>
-                          </div>
-                          <input type="radio" name="laptopDuration" value="short" disabled={laptopType === 'gaming'} checked={laptopDuration === 'short'} onChange={() => setLaptopDuration('short')} className="sr-only" />
-                          {laptopDuration === 'short' && laptopType !== 'gaming' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                        </label>
-                        <label className={`relative flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${laptopDuration === 'month' ? 'border-blue-600 bg-blue-50/50' : 'border-slate-200 hover:border-blue-300'}`}>
-                          <div>
-                            <div className="font-bold text-slate-900">月租方案</div>
-                            <div className="text-sm text-slate-500 mt-1">1個月以上</div>
-                          </div>
-                          <input type="radio" name="laptopDuration" value="month" checked={laptopDuration === 'month'} onChange={() => setLaptopDuration('month')} className="sr-only" />
-                          {laptopDuration === 'month' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                        </label>
-                      </div>
-                    </div>
-
-                    {laptopDuration === 'short' ? (
-                      <div className="space-y-3">
-                        <div className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 flex items-start gap-3">
-                          <Info className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
-                          <div>
-                            <div className="font-bold text-slate-900">最低起租價 $850 (15天內)</div>
-                            <div className="text-sm text-slate-500 mt-1.5 leading-relaxed">首日基本費 $850，第2天起每日追加 $150 (最高至15天，超過15天視同月租)。</div>
-                          </div>
-                        </div>
-                        <label className="block text-sm font-semibold text-slate-700">租賃天數 (最高15天)</label>
-                        <div className="relative">
-                          <input type="number" min="1" max="15" value={laptopDays} onChange={e => setLaptopDays(parseInt(e.target.value) || 1)} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl pl-4 pr-12 py-3.5 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium" />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">天</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 flex items-start gap-3">
-                          <Info className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
-                          <div>
-                            <div className="font-bold text-slate-900">月租 $ {laptopType === 'office' ? '1,500' : '3,000'} / 月</div>
-                          </div>
-                        </div>
-                        <label className="block text-sm font-semibold text-slate-700">租賃月數</label>
-                        <div className="relative">
-                          <input type="number" min="1" value={laptopMonths} onChange={e => setLaptopMonths(parseInt(e.target.value) || 1)} className="w-full bg-slate-50 border border-slate-300 text-slate-900 rounded-xl pl-4 pr-14 py-3.5 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium" />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">個月</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              
-              {/* Global Add-ons */}
-              <div className="bg-slate-50 p-6 md:p-8 border-t border-slate-200">
-                <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-slate-500" />
-                  附加選項
-                </h3>
-                <div className="space-y-4">
-                  <label className="flex items-start gap-3 cursor-pointer group">
-                    <div className="relative flex items-center mt-0.5">
-                      <input type="checkbox" checked={deliverySetup} onChange={e => setDeliverySetup(e.target.checked)} className="peer sr-only" />
-                      <div className="w-5 h-5 border-2 border-slate-300 rounded-md peer-checked:bg-blue-600 peer-checked:border-blue-600 transition-colors flex items-center justify-center">
-                        <Check className="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100" />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="font-semibold text-slate-900 group-hover:text-blue-700 transition-colors flex items-center gap-2">
-                        <Truck className="w-4 h-4 text-slate-500" /> 專人運送與網路驅動設定費
-                        <span className="text-blue-600 bg-blue-100 text-xs px-2 py-0.5 rounded-full">+$800 單次</span>
-                      </div>
-                    </div>
-                  </label>
-                  
-                  <label className="flex items-start gap-3 cursor-pointer group">
-                    <div className="relative flex items-center mt-0.5">
-                      <input type="checkbox" checked={depositReminder} onChange={e => setDepositReminder(e.target.checked)} className="peer sr-only" />
-                      <div className="w-5 h-5 border-2 border-slate-300 rounded-md peer-checked:bg-amber-500 peer-checked:border-amber-500 transition-colors flex items-center justify-center">
-                        <Check className="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100" />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="font-semibold text-slate-900 group-hover:text-amber-700 transition-colors flex items-center gap-2">
-                        <ShieldAlert className="w-4 h-4 text-slate-500" /> 設備預收押金提醒
-                        <span className="text-amber-600 bg-amber-100 text-xs px-2 py-0.5 rounded-full">
-                          {(() => {
-                            if (category === 'desktop') {
-                              return desktopDuration === 'month' && desktopMonthType === 'custom_graphic' ? '$12,000 / 台' : (desktopDuration === 'month' && desktopMonthType === 'graphic' ? '$8,000 / 台' : '$4,000 / 台');
-                            }
-                            if (category === 'laptop') {
-                              return laptopType === 'gaming' ? '$8,000 / 台' : '$4,000 / 台';
-                            }
-                            return '$2,000 / 台';
-                          })()}
-                        </span>
-                      </div>
-                      <div className="text-sm text-slate-500 mt-1">押金不計入總租金，於設備歸還後無息退還。</div>
-                    </div>
-                  </label>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 group">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <div className="relative flex items-center mt-0.5">
-                        <input type="checkbox" checked={customSoftware} onChange={e => setCustomSoftware(e.target.checked)} className="peer sr-only" />
-                        <div className="w-5 h-5 border-2 border-slate-300 rounded-md peer-checked:bg-purple-600 peer-checked:border-purple-600 transition-colors flex items-center justify-center">
-                          <Check className="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100" />
-                        </div>
-                      </div>
-                      <div className="font-semibold text-slate-900 group-hover:text-purple-700 transition-colors flex items-center gap-2">
-                        <span className="w-4 h-4 text-slate-500 flex items-center justify-center">💻</span> 客製化軟體
-                      </div>
-                    </label>
-                    
-                    {customSoftware && (
-                      <div className="ml-8 sm:ml-0 flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-600">費用：$</span>
-                        <input 
-                          type="number" 
-                          min="0"
-                          value={customSoftwareFee} 
-                          onChange={e => setCustomSoftwareFee(parseInt(e.target.value) || 0)} 
-                          className="w-24 bg-white border border-slate-300 text-slate-900 rounded-lg px-2 py-1 text-right focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
-                          placeholder="0"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Summary Card */}
-          <div className="lg:col-span-5 xl:col-span-4 lg:sticky lg:top-8">
-            <div className="bg-slate-900 text-white rounded-3xl shadow-xl overflow-hidden">
-              <div className="p-6 md:p-8">
-                <h2 className="text-lg font-medium text-slate-300 mb-6 flex items-center gap-2">
-                  <Receipt className="w-5 h-5 text-blue-400" />即時報價摘要
-                </h2>
-                
-                <div className="space-y-4 mb-8">
-                  {summary.details.map((detail, idx) => (
-                    <div key={idx} className="flex items-start gap-3 text-slate-300 text-sm">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 shrink-0" />
-                      <span className="leading-relaxed">{detail}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="space-y-3 pt-6 border-t border-slate-700/50">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-400">基本租金</span>
-                    <span className="font-medium tracking-wide">${summary.baseCost.toLocaleString()}</span>
-                  </div>
-                  {summary.usageCost > 0 && (
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-slate-400">預估超印費用</span>
-                      <span className="font-medium tracking-wide">${summary.usageCost.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {deliverySetup && (
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-slate-400">運送設定費 (單次)</span>
-                      <span className="font-medium tracking-wide">$800</span>
-                    </div>
-                  )}
-                  {customSoftware && (
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-slate-400">客製化軟體費 (單次)</span>
-                      <span className="font-medium tracking-wide">${customSoftwareFee.toLocaleString()}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-6 pt-6 border-t border-slate-700/50">
-                  <div className="text-sm text-slate-400 mb-1">預估總費用</div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-semibold text-blue-400">$</span>
-                    <span className="text-5xl font-bold tracking-tight">{summary.totalCost.toLocaleString()}</span>
-                  </div>
-                </div>
-
-                {depositReminder && (
-                  <div className="mt-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3">
-                    <Info className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                    <div className="text-sm text-amber-200/90 leading-relaxed">
-                      本報價不含設備押金，交機時需另收取押金 <strong className="text-amber-400">${summary.deposit.toLocaleString()}</strong> 元。
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <button 
-                onClick={handleCopy}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-5 px-6 transition-colors flex items-center justify-center gap-2 cursor-pointer"
-              >
-                {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                {copied ? '已複製報價摘要！' : '複製報價摘要'}
-              </button>
-            </div>
-          </div>
-          
         </div>
+        <div className="toolbar">
+          <button ref={helpBtn} onClick={() => help.current?.showModal()}>
+            <BookOpen size={17} />
+            操作說明
+          </button>
+          <button onClick={save}>
+            <Save size={17} />
+            保存草稿
+          </button>
+          <button onClick={() => setReplace("load")}>載入草稿</button>
+          <button onClick={() => setReplace("new")}>另開新詢價</button>
+        </div>
+      </header>
+      <p className="policy">
+        所有租賃含維修及耗材 · 送裝／回收另計 · 租期1天～3年 · 原設備價格保留
+      </p>
+      <p className="notice" role="status">
+        {message}
+      </p>
+      {replace && (
+        <div className="confirm-box" role="alert">
+          <p>替換目前畫面前，請先保存或下載備份。</p>
+          <button onClick={replaceNow}>
+            確認{replace === "new" ? "另開新詢價" : "載入草稿"}
+          </button>
+          <button onClick={() => setReplace(null)}>取消</button>
+        </div>
+      )}
+      {pendingImport && (
+        <div className="confirm-box" role="alert">
+          <p>
+            備份 {pendingImport.id}（{pendingImport.lines.length}
+            個品項）已通過檢查。匯入會替換目前畫面，請先保存或下載原內容。
+          </p>
+          <button
+            onClick={() => {
+              setQ(pendingImport);
+              setPendingImport(null);
+              setEditing("");
+              setUndo(null);
+              setPaste("");
+              setMessage("備份已載入，請重新核對；尚未覆寫本機保存。");
+            }}
+          >
+            確認匯入並替換畫面
+          </button>
+          <button onClick={() => setPendingImport(null)}>取消匯入</button>
+        </div>
+      )}
+      <div className="workspace">
+        <main>
+          <section className="card">
+            <div className="section-title">
+              <span className="step-icon">
+                <Phone size={19} />
+              </span>
+              <div>
+                <p className="eyebrow">STEP 01 · 接電話先問</p>
+                <h2>客戶與使用需求</h2>
+              </div>
+            </div>
+            <div className="form-grid">
+              {input("customer", "客戶／公司名稱")}
+              {input("contact", "聯絡人")}
+              {input("phone", "聯絡電話", "tel")}
+              {input("staff", "報價人員")}
+              {input(
+                "purpose",
+                "用途／工作內容",
+                "text",
+                "例如：教育訓練、短期辦公、3D繪圖",
+              )}
+              {input("readyAt", "最晚送達／安裝完成時間", "datetime-local")}
+              {input("start", "起租日期", "date")}
+              {input("end", "歸還日期", "date")}
+            </div>
+            <p className="helper">
+              日期記錄約定期間，不會自動更改費用。天數、月數需逐項確認；半年填6個月，全年填12個月，原月租不自動打折。最長3年。
+            </p>
+            <details className="extra">
+              <summary>軟體、網路與現場條件（可先記錄）</summary>
+              <div className="form-grid">
+                {area(
+                  "software",
+                  "軟體／版本／授權來源",
+                  "客戶自備授權？需安裝哪個版本與外掛？",
+                )}
+                {area(
+                  "network",
+                  "網路需求",
+                  "是否已有網路？同時連線台數？需配線、Wi-Fi或上網線路？",
+                )}
+                {area("access", "樓層／電梯／進場限制")}
+                {area("notes", "其他需求與備註")}
+              </div>
+            </details>
+          </section>
+          <section className="card">
+            <div className="section-title">
+              <span className="step-icon">
+                <ClipboardList size={20} />
+              </span>
+              <div>
+                <p className="eyebrow">STEP 02 · 同一張報價一起估</p>
+                <h2>加入設備與服務</h2>
+              </div>
+            </div>
+            <div className="kind-tabs" aria-label="品項類別">
+              {(Object.keys(KIND_NAMES) as Kind[]).map((k) => (
+                <button
+                  key={k}
+                  aria-pressed={kind === k}
+                  className={kind === k ? "selected" : ""}
+                  onClick={() => {
+                    setKind(k);
+                    setManual(MANUAL[k][0]);
+                  }}
+                >
+                  {KIND_NAMES[k]}
+                </button>
+              ))}
+            </div>
+            <div className="add-item">
+              {kind === "equipment" ? (
+                <>
+                  <Field label="原價設備方案">
+                    <select
+                      value={planId}
+                      onChange={(e) => setPlanId(e.target.value)}
+                    >
+                      {[...new Set(PLANS.map((p) => p.group))].map((g) => (
+                        <optgroup key={g} label={g}>
+                          {PLANS.filter((p) => p.group === g).map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}｜
+                              {p.tier
+                                ? "首日850，續日150"
+                                : money(p.rate) +
+                                  "／" +
+                                  (p.id === "laser-cm" ? "色" : p.unit)}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                      <option value="manual">
+                        螢幕／網路設備／特殊租期（人工報價）
+                      </option>
+                    </select>
+                  </Field>
+                  {planId === "manual" && (
+                    <Field label="人工設備項目">
+                      <select
+                        value={manual}
+                        onChange={(e) => setManual(e.target.value)}
+                      >
+                        {MANUAL.equipment.map((n) => (
+                          <option key={n}>{n}</option>
+                        ))}
+                      </select>
+                    </Field>
+                  )}
+                </>
+              ) : (
+                <Field label="常用服務或特殊項目">
+                  <select
+                    value={manual}
+                    onChange={(e) => setManual(e.target.value)}
+                  >
+                    {MANUAL[kind].map((n) => (
+                      <option key={n}>{n}</option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+              <button className="primary" onClick={add}>
+                <Plus size={18} />
+                加入本張報價
+              </button>
+            </div>
+            <p className="helper">
+              原設備及800元運送設定沿用原價。新軟體、工程、急件與螢幕無預設價，請人工確認。空白是待估，確認免費才填0。
+            </p>
+            {kind === "urgent" && (
+              <p className="callout">
+                先確認庫存、人員與可完成時間，再估優先整備、專送或特殊時段費；同一段工時不可重複收費。
+              </p>
+            )}
+            {kind === "software" && (
+              <p className="callout">
+                軟體授權費與代安裝費分開列；繪圖／3D軟體先確認適用授權及相容性。套裝已含的項目不要重複加價。
+              </p>
+            )}
+            {kind === "network" && (
+              <p className="callout">
+                網路設備租金、配線、設定、上網線路及駐點分開估。Wi-Fi設備不代表已含網際網路或全場覆蓋。
+              </p>
+            )}
+            <div className="line-list">
+              {!q.lines.length && (
+                <div className="empty">
+                  <ClipboardList size={28} />
+                  <p>尚未加入品項</p>
+                  <span>同一張單可加入主機、螢幕、軟體、網路及收送。</span>
+                </div>
+              )}
+              {q.lines.map((l, n) => {
+                const r = s.rows[n],
+                  p = PLANS.find((v) => v.id === l.planId);
+                return (
+                  <article key={l.id} className="line-card">
+                    <div className="line-heading">
+                      <div>
+                        <span className="tag">{KIND_NAMES[l.kind]}</span>
+                        <h3>
+                          {n + 1}. {l.name || "未命名項目"}
+                        </h3>
+                        <p>
+                          {l.qty}件 × {l.periods}
+                          {p?.id === "laser-cm" ? "色" : l.unit}
+                        </p>
+                      </div>
+                      <div className="line-actions">
+                        <strong className={r.amount === null ? "pending" : ""}>
+                          {r.amount === null ? "待估／需修正" : money(r.amount)}
+                        </strong>
+                        <button
+                          aria-label={`編輯第${n + 1}項`}
+                          aria-expanded={editing === l.id}
+                          onClick={() =>
+                            setEditing(editing === l.id ? "" : l.id)
+                          }
+                        >
+                          {editing === l.id ? "收起" : "編輯"}
+                        </button>
+                        <button
+                          className="quiet"
+                          aria-label={`移除第${n + 1}項`}
+                          onClick={() => {
+                            setUndo(l);
+                            edit((v) => ({
+                              ...v,
+                              lines: v.lines.filter((row) => row.id !== l.id),
+                            }));
+                          }}
+                        >
+                          移除
+                        </button>
+                      </div>
+                    </div>
+                    {editing === l.id && (
+                      <div className="line-editor">
+                        <div className="form-grid">
+                          <Field label="項目名稱">
+                            <input
+                              value={l.name}
+                              maxLength={200}
+                              onChange={(e) =>
+                                line(l.id, { name: e.target.value })
+                              }
+                            />
+                          </Field>
+                          <Field label="數量（設備台數／服務數量）">
+                            <input
+                              type="number"
+                              min="1"
+                              max="1000"
+                              step="1"
+                              value={l.qty}
+                              onChange={(e) =>
+                                line(l.id, { qty: e.target.value })
+                              }
+                            />
+                          </Field>
+                          <Field
+                            label={
+                              p?.id === "laser-cm"
+                                ? "每台購買色數"
+                                : "計費期數（天／月／次數）"
+                            }
+                          >
+                            <input
+                              type="number"
+                              min="1"
+                              max={p?.tier ? 15 : l.unit === "月" ? 36 : 1096}
+                              step="1"
+                              value={l.periods}
+                              onChange={(e) =>
+                                line(l.id, { periods: e.target.value })
+                              }
+                            />
+                          </Field>
+                          {p ? (
+                            <Field label="原價計費說明">
+                              <output>
+                                {p.tier
+                                  ? "首日850元，續日150元"
+                                  : money(p.rate) +
+                                    "／" +
+                                    (p.id === "laser-cm" ? "色" : p.unit)}
+                              </output>
+                            </Field>
+                          ) : (
+                            <>
+                              <Field label="計費單位">
+                                <select
+                                  value={l.unit}
+                                  onChange={(e) =>
+                                    line(l.id, { unit: e.target.value })
+                                  }
+                                >
+                                  {[
+                                    "次",
+                                    "天",
+                                    "月",
+                                    "小時",
+                                    "點",
+                                    "趟",
+                                    "人日",
+                                  ].map((v) => (
+                                    <option key={v}>{v}</option>
+                                  ))}
+                                </select>
+                              </Field>
+                              <Field label="人工單價（未知留空）">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  max="10000000"
+                                  value={l.price}
+                                  placeholder="待估"
+                                  onChange={(e) =>
+                                    line(l.id, { price: e.target.value })
+                                  }
+                                />
+                              </Field>
+                            </>
+                          )}
+                          {p?.usage !== undefined && (
+                            <Field label="每台整段租期預估印量（彩雷含黑白＋彩色）">
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={l.pages}
+                                onChange={(e) =>
+                                  line(l.id, { pages: e.target.value })
+                                }
+                              />
+                            </Field>
+                          )}
+                        </div>
+                        {p && <p className="helper">{p.note}</p>}
+                        {p?.tier && Number(l.periods) >= 6 && (
+                          <p className="callout">
+                            短租基本費已高於月租1,500元，可另選文書筆電月租比較；須確認適用期間與條件，不自動轉換。
+                          </p>
+                        )}
+                        <Field label="本項範圍／規格／已含與另計">
+                          <textarea
+                            value={l.scope}
+                            maxLength={3000}
+                            placeholder="例如：十台同址設定，不含新增配線；送裝與回收分別列項。"
+                            onChange={(e) =>
+                              line(l.id, { scope: e.target.value })
+                            }
+                          />
+                        </Field>
+                        <details className="extra">
+                          <summary>個別日期、人工調價與優惠範圍</summary>
+                          <div className="form-grid">
+                            <Field label="本項起租日期（空白沿用整案）">
+                              <input
+                                type="date"
+                                value={l.start}
+                                onInput={(e) =>
+                                  line(l.id, { start: e.currentTarget.value })
+                                }
+                                onChange={(e) =>
+                                  line(l.id, { start: e.target.value })
+                                }
+                              />
+                            </Field>
+                            <Field label="本項歸還日期（空白沿用整案）">
+                              <input
+                                type="date"
+                                value={l.end}
+                                onInput={(e) =>
+                                  line(l.id, { end: e.currentTarget.value })
+                                }
+                                onChange={(e) =>
+                                  line(l.id, { end: e.target.value })
+                                }
+                              />
+                            </Field>
+                            <Field
+                              label="人工調整：每台整段基本費"
+                              hint="留空沿用計算，不包含超印；所有台數套用同一調整。"
+                            >
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={l.override}
+                                onChange={(e) =>
+                                  line(l.id, { override: e.target.value })
+                                }
+                              />
+                            </Field>
+                            <Field label="人工調價原因">
+                              <input
+                                value={l.overrideReason}
+                                maxLength={500}
+                                onChange={(e) =>
+                                  line(l.id, { overrideReason: e.target.value })
+                                }
+                              />
+                            </Field>
+                          </div>
+                          {l.kind === "equipment" && p?.id !== "laser-cm" && (
+                            <Check
+                              label="此設備基本租金可套用整案優惠（不含超印）"
+                              checked={l.discountable}
+                              onChange={(v) => line(l.id, { discountable: v })}
+                            />
+                          )}
+                        </details>
+                        {!!r.errors.length && (
+                          <ul className="errors">
+                            {r.errors.map((e) => (
+                              <li key={e}>{e}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+            {undo && (
+              <button
+                onClick={() => {
+                  if (q.lines.length < 100) {
+                    edit((v) => ({ ...v, lines: [...v.lines, undo] }));
+                    setUndo(null);
+                  }
+                }}
+              >
+                <RotateCcw size={16} />
+                復原剛才移除的項目
+              </button>
+            )}
+          </section>
+          <section className="card">
+            <div className="section-title">
+              <span className="step-number">03</span>
+              <div>
+                <p className="eyebrow">交付與商務條件</p>
+                <h2>收送、優惠及付款</h2>
+              </div>
+            </div>
+            <div className="form-grid">
+              {select("delivery", "交付方式", [
+                "待確認",
+                "客戶自取自還",
+                "專人送裝及回收",
+                "僅送達／回收另約",
+                "物流寄送來回",
+                "多地點／特殊交付",
+              ])}
+              {select("urgency", "時效需求（費用請另外加品項）", [
+                "正常預約",
+                "優先整備",
+                "當日急件",
+                "夜間／假日",
+                "交期待確認",
+              ])}
+              {input("address", "交付地址／地點")}
+              {input("validUntil", "報價有效至", "date")}
+              <Field label="設備優惠方式">
+                <select
+                  value={q.discount.type}
+                  onChange={(e) =>
+                    edit((v) => ({
+                      ...v,
+                      discount: {
+                        ...v.discount,
+                        type: e.target.value as "amount" | "percent",
+                        value: "0",
+                      },
+                    }))
+                  }
+                >
+                  <option value="amount">減免固定金額</option>
+                  <option value="percent">折讓百分比（填10＝減10%）</option>
+                </select>
+              </Field>
+              <Field
+                label={
+                  q.discount.type === "percent"
+                    ? "折讓百分比（0～100）"
+                    : "減免金額"
+                }
+              >
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  max={q.discount.type === "percent" ? 100 : s.discountBase}
+                  value={q.discount.value}
+                  onChange={(e) =>
+                    edit((v) => ({
+                      ...v,
+                      discount: { ...v.discount, value: e.target.value },
+                    }))
+                  }
+                />
+              </Field>
+            </div>
+            <Field label="優惠原因（有優惠必填）">
+              <input
+                value={q.discount.reason}
+                maxLength={500}
+                placeholder="例如：同址整批交付／半年承租優惠，依核定條件"
+                onChange={(e) =>
+                  edit((v) => ({
+                    ...v,
+                    discount: { ...v.discount, reason: e.target.value },
+                  }))
+                }
+              />
+            </Field>
+            <p className="helper">
+              可優惠設備基本租金：{money(s.discountBase)}
+              。一次只套用一筆優惠；軟體、工程、收送、急件、碳粉及超印不參與。人工設備需明確勾選。
+            </p>
+            <div className="form-grid">
+              <Field label="稅額方式">
+                <select
+                  value={i.tax}
+                  onChange={(e) => iq("tax", e.target.value)}
+                >
+                  <option value="pending">待確認</option>
+                  <option value="included">報價已含稅，不另加</option>
+                  <option value="exclusive">未稅，另加5%</option>
+                </select>
+              </Field>
+              <Field label="押金方式">
+                <select
+                  value={i.depositMode}
+                  onChange={(e) => iq("depositMode", e.target.value)}
+                >
+                  <option value="pending">待確認</option>
+                  <option value="collect">另收押金</option>
+                  <option value="waive">本案免押金（填原因）</option>
+                </select>
+              </Field>
+              {i.depositMode === "collect" &&
+                input("deposit", "本案押金總額", "number")}
+              {input("depositReason", "押金說明／免收原因")}
+            </div>
+            {i.depositMode === "collect" && (
+              <p className="helper">
+                原設備押金參考合計 {money(s.suggestedDeposit)}（不含人工設備）。
+                <button
+                  onClick={() => iq("deposit", String(s.suggestedDeposit))}
+                >
+                  帶入原設備押金參考
+                </button>
+                請核對後調整。
+              </p>
+            )}
+            {area(
+              "payment",
+              "付款安排／續租與提前歸還約定",
+              "例如：首次費用及押金交付前支付，後續按月；續租與提前歸還另約。",
+            )}
+          </section>
+          <section className="card">
+            <div className="section-title">
+              <span className="step-number">04</span>
+              <div>
+                <p className="eyebrow">輸出前逐項確認</p>
+                <h2>報價核對</h2>
+              </div>
+            </div>
+            <p className="helper">
+              這是人工核對紀錄，並非員工登入、主管權限或庫存預約。修改任何報價內容會取消最後一項核對。
+            </p>
+            <Check
+              label="如需配送，已分別確認送裝與回收費，並列入收送品項"
+              checked={i.transportConfirmed}
+              onChange={(v) => iq("transportConfirmed", v)}
+            />
+            <Check
+              label="已確認庫存、人員與交期，能依約交付"
+              checked={i.stockConfirmed}
+              onChange={(v) => iq("stockConfirmed", v)}
+            />
+            <Check
+              label="已確認維修及耗材包含，送裝與回收費另列，無漏項或重複計費"
+              checked={i.scopeConfirmed}
+              onChange={(v) => iq("scopeConfirmed", v)}
+            />
+            <Check
+              label="已逐項確認日期與計費天數／月數，租期1天至3年"
+              checked={i.periodsConfirmed}
+              onChange={(v) => iq("periodsConfirmed", v)}
+            />
+            <Check
+              label="如含軟體，已確認授權來源、版本及安裝方式"
+              checked={i.licenseConfirmed}
+              onChange={(v) => iq("licenseConfirmed", v)}
+            />
+            <Check
+              label="已依公司規定完成人工核對，包含特殊價格、急件與優惠"
+              checked={i.reviewed}
+              onChange={(v) => iq("reviewed", v)}
+            />
+          </section>
+          <section className="card">
+            <h2>備份與匯入</h2>
+            <p className="helper">
+              此版為本機草稿，沒有多人共用。備份含客戶資料，請依公司方式保存。
+            </p>
+            <div className="toolbar">
+              <button
+                onClick={() =>
+                  download(
+                    `${q.id}.json`,
+                    JSON.stringify(q, null, 2),
+                    "application/json",
+                  )
+                }
+              >
+                <Download size={17} />
+                下載本案備份
+              </button>
+              <button onClick={() => file.current?.click()}>匯入備份</button>
+              <input
+                hidden
+                ref={file}
+                type="file"
+                accept=".json,application/json"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  try {
+                    if (f.size > 2000000) throw Error("檔案過大");
+                    importText(await f.text());
+                  } catch (error) {
+                    setMessage(
+                      error instanceof Error
+                        ? error.message
+                        : "匯入失敗，原內容保留",
+                    );
+                  } finally {
+                    e.target.value = "";
+                  }
+                }}
+              />
+            </div>
+            <details className="extra">
+              <summary>無法選檔？貼上JSON備份文字</summary>
+              <Field label="JSON備份文字">
+                <textarea
+                  value={paste}
+                  onChange={(e) => setPaste(e.target.value)}
+                  placeholder="貼上下載的JSON備份內容"
+                />
+              </Field>
+              <button onClick={() => importText(paste)}>
+                檢查並匯入備份文字
+              </button>
+            </details>
+          </section>
+        </main>
+        <aside className="summary-panel" aria-label="即時報價摘要">
+          <div className="summary-top">
+            <p className="eyebrow">即時報價摘要</p>
+            <span className={"status " + (s.ready ? "ready" : "")}>
+              {s.ready ? "已人工確認" : "詢價草稿／待確認"}
+            </span>
+            <h2>{i.customer || "新租賃詢價"}</h2>
+            <p className="order-id">
+              {q.id} · {q.lines.length}個品項
+            </p>
+            <div className="summary-money">
+              <span>{s.ready ? "全租期費用" : "目前已估金額"}</span>
+              <strong>{money(s.total)}</strong>
+              <small>
+                {s.pending
+                  ? `另有${s.pending}項待估，非完整總價`
+                  : s.ready
+                    ? "押金另列；付款依本次約定"
+                    : "未確認前僅供詢價，並非預約或保留設備"}
+              </small>
+            </div>
+            <dl>
+              <div>
+                <dt>已估品項小計</dt>
+                <dd>{money(s.subtotal)}</dd>
+              </div>
+              <div>
+                <dt>設備租金優惠</dt>
+                <dd>−{money(s.discount)}</dd>
+              </div>
+              <div>
+                <dt>
+                  {i.tax === "exclusive"
+                    ? "另加5%稅額"
+                    : i.tax === "included"
+                      ? "已含稅"
+                      : "稅額待確認"}
+                </dt>
+                <dd>{i.tax === "exclusive" ? money(s.tax) : "—"}</dd>
+              </div>
+              <div>
+                <dt>另列押金</dt>
+                <dd>{s.deposit === null ? "待確認" : money(s.deposit)}</dd>
+              </div>
+            </dl>
+            <p className="summary-note">
+              此處為整段租期估價，非每月帳單或到期應收。付款安排依完整文字約定。
+            </p>
+            {!!s.checks.length && (
+              <details open className="checklist">
+                <summary>還有{s.checks.length}項需要確認</summary>
+                <ul>
+                  {s.checks.map((c) => (
+                    <li key={c}>{c}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            <button className="primary full" onClick={copy}>
+              <Copy size={17} />
+              {s.ready ? "複製已確認報價" : "複製詢價草稿"}
+            </button>
+            <div className="output-buttons">
+              <button
+                onClick={() =>
+                  download(`${q.id}.txt`, text, "text/plain;charset=utf-8")
+                }
+              >
+                <Download size={16} />
+                下載文字
+              </button>
+              <button onClick={() => window.print()}>
+                <Printer size={16} />
+                列印
+              </button>
+            </div>
+          </div>
+          <details className="text-preview">
+            <summary>完整報價文字（可自行複製）</summary>
+            <pre>{text}</pre>
+          </details>
+        </aside>
       </div>
+      <section className="print-only">
+        <h1>永捷租賃報價</h1>
+        <pre>{text}</pre>
+      </section>
+      <dialog
+        ref={help}
+        className="help-dialog"
+        aria-labelledby="help-title"
+        onClose={() => helpBtn.current?.focus()}
+      >
+        <header>
+          <h2 id="help-title">操作說明／電話詢價步驟</h2>
+          <button onClick={() => help.current?.close()}>返回報價</button>
+        </header>
+        <ol>
+          {HELP.map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ol>
+      </dialog>
     </div>
   );
 }
