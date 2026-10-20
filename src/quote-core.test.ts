@@ -340,7 +340,8 @@ test("customer summary omits zero discount and empty optional sections", () => {
     assert.ok(!t.includes(text), text);
   assert.match(t, /包含維修及耗材/);
   assert.match(t, /送裝／回收另計/);
-  assert.match(t, /草稿/);
+  assert.ok(t.startsWith("【永捷租賃報價】\n"));
+  assert.doesNotMatch(t, /草稿/);
 });
 test("customer summary retains pending amounts and explicitly marks unknown tax and deposit", () => {
   const q = newQuote();
@@ -352,6 +353,7 @@ test("customer summary retains pending amounts and explicitly marks unknown tax 
   assert.match(t, /稅額待確認/);
   assert.match(t, /押金另計：待確認/);
   assert.match(t, /非完整確定報價/);
+  assert.doesNotMatch(t, /草稿/);
 });
 
 

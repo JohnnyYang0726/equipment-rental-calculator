@@ -554,7 +554,7 @@ export function quoteText(
     i.tax
   ];
   return [
-    options.approval ? "【永捷租賃正式報價】" : "【永捷租賃報價草稿｜待確認】",
+    options.approval ? "【永捷租賃正式報價】" : "【永捷租賃報價】",
     "單號：" +
       q.id +
       (options.approval ? "／第" + options.approval.revision + "版" : ""),
@@ -633,7 +633,7 @@ export function quoteText(
         : ""),
     ...(options.approval
       ? ["庫存、交期與續租異動，依雙方確認。"]
-      : ["此為草稿，非完整確定報價；費用、庫存與交期確認後另提供正式報價。"]),
+      : [s.ready ? "費用、庫存與交期依雙方確認內容辦理。" : "尚有待確認項目，非完整確定報價；費用、庫存與交期須先確認。"]),
   ].join("\n");
 }
 function detailedQuoteText(
