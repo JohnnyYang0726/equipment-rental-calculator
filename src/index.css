@@ -965,3 +965,7 @@ button:disabled {
  .summary-panel .customer-preview .helper {margin:6px 0 10px;}
 }
 @media screen and (max-width:900px) {.summary-panel .customer-preview pre {max-height:none;}}
+@media screen and (min-width:851px) {
+ .summary-panel {max-height:calc(100dvh - 40px);overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;}
+ .summary-panel .customer-preview pre {max-height:none;overflow:visible;}
+}
