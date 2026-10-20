@@ -278,7 +278,7 @@ export default function App() {
           <div>
             <p className="eyebrow">永捷系統科技 · 內部報價工具</p>
             <h1>
-              租賃詢價與多品項報價 <span>v1.1.2</span>
+              租賃詢價與多品項報價 <span>v1.1.3</span>
             </h1>
             <p>先問需求，再逐項估價；特殊服務保留人工確認。</p>
           </div>
@@ -1097,6 +1097,11 @@ export default function App() {
           <h2 id="help-title">操作說明／電話詢價步驟</h2>
           <button onClick={() => help.current?.close()}>返回報價</button>
         </header>
+        <div className="manual-actions">
+          <p>三套程式共用完整手冊｜2026/10/20 更新・22 頁。可下載保存，或開啟後列印需要的頁面。</p>
+          <a href="/manuals/employee-handbook-2026-10-20.pdf" target="_blank" rel="noopener noreferrer">開啟／列印員工手冊 PDF</a>
+          <a href="/manuals/employee-handbook-2026-10-20.pdf" download>下載員工手冊 PDF</a>
+        </div>
         <ol>
           {HELP.map((t) => (
             <li key={t}>{t}</li>
