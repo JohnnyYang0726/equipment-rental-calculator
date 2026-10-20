@@ -578,7 +578,7 @@ export function quoteText(
           (r.amount === null ? "待估" : money(r.amount)),
         ...(scope ? ["   " + scope] : []),
         ...(p?.usage !== undefined
-          ? ["   每台含" + (p.included || 0) + "張；超印每張" + money(p.usage) + "；預估" + l.pages + "張，超印費" + money(r.usage)]
+          ? ["   " + (scope === p.note ? "" : "整段租期每台含" + (p.included || 0) + "張；" + (p.id.startsWith("laser-c") ? "黑白及彩色" : "") + "超印每張" + money(p.usage) + "；") + "每台預估" + l.pages + "張，超印費" + money(r.usage) + (scope !== p.note && p.id.startsWith("ink-") ? "（每台無條件捨去至整元）" : "")]
           : []),
         ...(l.start || l.end
           ? ["   期間：" + (l.start || i.start) + " ～ " + (l.end || i.end)]

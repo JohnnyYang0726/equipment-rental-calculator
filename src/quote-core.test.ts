@@ -360,6 +360,6 @@ test("customer quotation orders sections and preserves printing allowances and m
  const t=quoteText(q);
  assert.ok(t.indexOf("【設備與服務】")<t.indexOf("【費用合計】"));
  assert.ok(t.indexOf("【費用合計】")<t.indexOf("【交付與必要條件】"));
- assert.match(t,/每台含50張；超印每張NT\$ 1/);
+ assert.match(t,/每台含50張，超印每張1元/);assert.equal(t.split("每台含50張").length-1,1);
  assert.match(t,/付款：待確認/);assert.match(t,/交付：待確認/);
 });
