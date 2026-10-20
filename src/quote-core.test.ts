@@ -353,3 +353,13 @@ test("customer summary retains pending amounts and explicitly marks unknown tax 
   assert.match(t, /押金另計：待確認/);
   assert.match(t, /非完整確定報價/);
 });
+
+
+test("customer quotation orders sections and preserves printing allowances and missing payment",()=>{
+ const q=newQuote();q.lines=[makeLine("equipment","laser-bw")];
+ const t=quoteText(q);
+ assert.ok(t.indexOf("【設備與服務】")<t.indexOf("【費用合計】"));
+ assert.ok(t.indexOf("【費用合計】")<t.indexOf("【交付與必要條件】"));
+ assert.match(t,/每台含50張；超印每張NT\$ 1/);
+ assert.match(t,/付款：待確認/);assert.match(t,/交付：待確認/);
+});

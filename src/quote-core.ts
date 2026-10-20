@@ -561,6 +561,7 @@ export function quoteText(
     "客戶：" + (i.customer || "待填"),
     "租期：" + (i.start || "待確認") + " ～ " + (i.end || "待確認"),
     "",
+    "【設備與服務】",
     ...q.lines.flatMap((l, n) => {
       const r = s.rows[n],
         p = PLANS.find((p) => p.id === l.planId);
@@ -577,7 +578,7 @@ export function quoteText(
           (r.amount === null ? "待估" : money(r.amount)),
         ...(scope ? ["   " + scope] : []),
         ...(p?.usage !== undefined
-          ? ["   每台預估" + l.pages + "張；每台超印費" + money(r.usage)]
+          ? ["   每台含" + (p.included || 0) + "張；超印每張" + money(p.usage) + "；預估" + l.pages + "張，超印費" + money(r.usage)]
           : []),
         ...(l.start || l.end
           ? ["   期間：" + (l.start || i.start) + " ～ " + (l.end || i.end)]
@@ -585,6 +586,7 @@ export function quoteText(
       ];
     }),
     "",
+    "【費用合計】",
     ...(s.discount > 0
       ? [
           "品項小計：" + money(s.subtotal),
@@ -605,9 +607,10 @@ export function quoteText(
         : s.deposit === 0
           ? "免收"
           : money(s.deposit)),
-    ...(i.payment.trim() ? ["付款：" + i.payment.trim()] : []),
+    "付款：" + (i.payment.trim() || "待確認"),
     "",
-    ...(i.delivery !== "待確認" ? ["交付：" + i.delivery] : []),
+    "【交付與必要條件】",
+    "交付：" + i.delivery,
     ...(i.address.trim()
       ? ["地點：" + i.address + (i.access ? "／" + i.access : "")]
       : []),
@@ -615,7 +618,7 @@ export function quoteText(
     ...(!["正常預約", "交期待確認"].includes(i.urgency)
       ? ["時效：" + i.urgency]
       : []),
-    ...(i.validUntil ? ["報價有效至：" + i.validUntil] : []),
+    "報價有效至：" + (i.validUntil || "待確認"),
     ...([i.software, i.network, i.notes].some((v) => v.trim())
       ? [
           "補充：" +
@@ -660,6 +663,7 @@ function detailedQuoteText(
     `交付地點：${i.address || "依約確認"}${i.access ? "／" + i.access : ""}`,
     `時效需求：${i.urgency}`,
     "",
+    "【設備與服務】",
     ...q.lines.flatMap((l, n) => {
       const r = s.rows[n];
       const p = PLANS.find((p) => p.id === l.planId);
