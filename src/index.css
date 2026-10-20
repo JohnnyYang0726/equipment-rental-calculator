@@ -957,3 +957,11 @@ button:disabled {
  .summary-top {padding:20px;}
  .toolbar button {flex:1 1 130px;}
 }
+
+@media screen {
+ .summary-panel .text-preview.customer-preview {margin:18px 0;padding:14px;border:1px solid #dce5ef;border-radius:14px;background:#f8fafd;}
+ .summary-panel .customer-preview summary {font-size:16px;min-height:44px;font-weight:700;}
+ .summary-panel .customer-preview pre {max-height:360px;overflow:auto;margin:12px 0 0;font-size:14px;line-height:1.9;}
+ .summary-panel .customer-preview .helper {margin:6px 0 10px;}
+}
+@media screen and (max-width:900px) {.summary-panel .customer-preview pre {max-height:none;}}

@@ -97,8 +97,8 @@ function download(name: string, text: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(u), 1000);
 }
 const HELP = [
-  "先看客戶預覽：電腦看右側即時摘要，手機往下滑到表單下方，展開「客戶版報價文字（可自行複製）」。依序核對設備與服務、費用合計、交付與必要條件；預覽不會保存、同步或保留庫存。",
-  "客戶精簡版怎麼複製：先核對上述預覽，再按「複製客戶版草稿」，看到成功提示再貼到 LINE、郵件或文件。可展開「客戶版報價文字（可自行複製）」先看內容；交付前核對品項、數量、租期、總額、押金及收送。",
+  "先看客戶預覽：電腦看右側即時摘要，手機往下滑到表單下方，查看已展開的「客戶報價預覽」。依序核對設備與服務、費用合計、交付與必要條件；預覽不會保存、同步或保留庫存。",
+  "客戶精簡版怎麼複製：先核對上述預覽，再按「複製客戶版草稿」，看到成功提示再貼到 LINE、郵件或文件。可查看已展開的「客戶報價預覽」先看內容；交付前核對品項、數量、租期、總額、押金及收送。",
   "客戶精簡版怎麼列印：先核對預覽中的租期、待估、押金、稅額、內含張數及超印費，再在詢價頁按「列印草稿」，核對列印預覽後選印表機或「另存為 PDF」。「下載文字」同樣是客戶版草稿；JSON 備份是內部完整資料，不能當客戶報價寄出。",
   "草稿與正式版的差別：草稿供詢價討論；「資料已齊」只代表填寫完成。須登入團隊、同步本張報價、由主管核准最新版本，才可在團隊頁輸出正式版。保存、同步成功及自行勾選人工核對，都不是主管核准。",
   "正式版怎麼交付：在團隊頁按「複製正式報價」或「下載正式文字」；要列印，按「下載正式報價（可列印）」，開啟 HTML 檔後按「列印正式報價」，也可另存 PDF。正式輸出會核對最新核准，內容變更後須重新同步、核准。",
@@ -279,7 +279,7 @@ export default function App() {
           <div>
             <p className="eyebrow">永捷系統科技 · 內部報價工具</p>
             <h1>
-              租賃詢價與多品項報價 <span>v1.2.2</span>
+              租賃詢價與多品項報價 <span>v1.2.3</span>
             </h1>
             <p>先問需求，再逐項估價；特殊服務保留人工確認。</p>
           </div>
@@ -1059,6 +1059,11 @@ export default function App() {
                 </ul>
               </details>
             )}
+            <details className="text-preview customer-preview" open>
+              <summary>客戶報價預覽</summary>
+              <p className="helper">以下與複製、下載文字及列印內容相同。交付前請核對品項、租期、費用與必要條件。</p>
+              <pre>{text}</pre>
+            </details>
             <button className="primary full" onClick={copy}>
               <Copy size={17} />
               複製客戶版草稿
@@ -1078,10 +1083,6 @@ export default function App() {
               </button>
             </div>
           </div>
-          <details className="text-preview">
-            <summary>客戶版報價文字（可自行複製）</summary>
-            <pre>{text}</pre>
-          </details>
         </aside>
       </div>
       <section className="print-only">
