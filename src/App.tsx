@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useRef, useState } from "react";
+import React, { lazy, Suspense, useRef, useState, useCallback } from "react";
 const TeamWorkspace = lazy(() => import("./TeamWorkspace"));
 import {
   Calculator,
@@ -133,8 +133,10 @@ export default function App() {
   );
   const [paste, setPaste] = useState("");
   const [pendingImport, setPendingImport] = useState<Quote | null>(null);
-  const [teamOpen, setTeamOpen] = useState(false);
-  const [teamStarted, setTeamStarted] = useState(false);
+  const [teamOpen, setTeamOpen] = useState(true);
+  const [teamStarted, setTeamStarted] = useState(true);
+  const [quoteAccess,setQuoteAccess]=useState(false);
+  const onAccess=useCallback((allowed:boolean)=>{setQuoteAccess(allowed);if(!allowed)setTeamOpen(true);},[]);
   const [resetKey, setResetKey] = useState(0);
   const file = useRef<HTMLInputElement>(null),
     help = useRef<HTMLDialogElement>(null),
@@ -279,7 +281,7 @@ export default function App() {
           <div>
             <p className="eyebrow">永捷系統科技 · 內部報價工具</p>
             <h1>
-              租賃詢價與多品項報價 <span>v1.2.4</span>
+              租賃詢價與多品項報價 <span>v1.3.0</span>
             </h1>
             <p>先問需求，再逐項估價；特殊服務保留人工確認。</p>
           </div>
@@ -295,12 +297,12 @@ export default function App() {
             <BookOpen size={17} />
             操作說明
           </button>
-          <button onClick={save}>
+          <button disabled={!quoteAccess} onClick={save}>
             <Save size={17} />
             保存草稿
           </button>
-          <button onClick={() => setReplace("load")}>載入草稿</button>
-          <button onClick={() => setReplace("new")}>另開新詢價</button>
+          <button disabled={!quoteAccess} onClick={() => setReplace("load")}>載入草稿</button>
+          <button disabled={!quoteAccess} onClick={() => setReplace("new")}>另開新詢價</button>
         </div>
       </header>
       <p className="policy">
@@ -309,16 +311,16 @@ export default function App() {
       <p className="notice" role="status">
         {message}
       </p>
-      {replace && (
+      {quoteAccess && replace && (
         <div className="confirm-box" role="alert">
           <p>替換目前畫面前，請先保存或下載備份。</p>
           <button onClick={replaceNow}>
             確認{replace === "new" ? "另開新詢價" : "載入草稿"}
           </button>
-          <button onClick={() => setReplace(null)}>取消</button>
+          <button disabled={!quoteAccess} onClick={() => setReplace(null)}>取消</button>
         </div>
       )}
-      {pendingImport && (
+      {quoteAccess && pendingImport && (
         <div className="confirm-box" role="alert">
           <p>
             備份 {pendingImport.id}（{pendingImport.lines.length}
@@ -345,6 +347,7 @@ export default function App() {
           <TeamWorkspace
             open={teamOpen}
             onClose={() => setTeamOpen(false)}
+            onAccess={onAccess}
             quote={q}
             resetKey={resetKey}
             onLoad={(loaded) => {
@@ -372,6 +375,8 @@ export default function App() {
           />
         )}
       </Suspense>
+      {!quoteAccess && <section className="card"><h2>請先使用員工帳號登入</h2><p>主管與客服／行政登入後才能估價。三套程式使用同一組帳號，各網站請分別登入。</p><a href="https://yongjiesystems.github.io/testing/?tab=warranty">公開保固與驅動查詢</a></section>}
+      {quoteAccess && <>
       <div className="workspace">
         <main>
           <section className="card">
@@ -1089,6 +1094,7 @@ export default function App() {
         <h1>永捷租賃報價</h1>
         <pre>{text}</pre>
       </section>
+      </>}
       <dialog
         ref={help}
         className="help-dialog"
@@ -1104,7 +1110,7 @@ export default function App() {
           <a href="/manuals/employee-handbook-2026-10-21.pdf" target="_blank" rel="noopener noreferrer">開啟／列印員工手冊 PDF</a>
           <a href="/manuals/employee-handbook-2026-10-21.pdf" download>下載員工手冊 PDF</a>
         </div>
-        <ol>
+        <p>先用已開通的員工帳號登入。三套程式共用帳號，各網站分別登入；忘記密碼在登入頁按「寄送重設信」，由本人開信設定。主管可在員工名單寄送重設信，也可停用帳號與調整角色。保固與驅動查詢免登入。</p><ol>
           {HELP.map((t) => (
             <li key={t}>{t}</li>
           ))}

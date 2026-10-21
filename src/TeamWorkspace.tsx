@@ -69,7 +69,9 @@ export default function TeamWorkspace({
   onLoad,
   onCanonical,
   onClear,
+  onAccess,
 }: {
+  onAccess: (allowed:boolean)=>void;
   open: boolean;
   onClose: () => void;
   quote: Quote;
@@ -131,7 +133,8 @@ export default function TeamWorkspace({
     setInvite("");
     setLink(null);
     setRole("");
-  }, []);
+    onAccess(false);
+  }, [onAccess]);
   useEffect(() => {
     setLink(null);
     setPendingLoad(null);
@@ -195,6 +198,7 @@ export default function TeamWorkspace({
       setOrg(chosen.org_id);
       setOrgName(o.name);
       setRole(chosen.role);
+      onAccess(["MANAGER","STAFF"].includes(chosen.role) && u.user_metadata?.yj_password_setup!==true);
       if (!["MANAGER", "STAFF"].includes(chosen.role)) {
         setRows([]);
         setEmployees([]);
@@ -208,10 +212,10 @@ export default function TeamWorkspace({
         );
       }
     },
-    [clearPrivate],
+    [clearPrivate,onAccess],
   );
   useEffect(() => {
-    void context().catch((e) => setMessage(teamError(e)));
+    void context().catch((e) => {clearPrivate();setMessage(teamError(e));});
     const {
       data: { subscription },
     } = client.auth.onAuthStateChange((_event, session) => {
@@ -223,7 +227,7 @@ export default function TeamWorkspace({
         clearPrivate();
       } else
         setTimeout(
-          () => void context().catch((e) => setMessage(teamError(e))),
+          () => void context().catch((e) => {clearPrivate();setMessage(teamError(e));}),
           0,
         );
     });
@@ -275,11 +279,12 @@ export default function TeamWorkspace({
           : [];
       if (token !== generation.current || orgRef.current !== orgId) return;
       setRole(active.role);
+      onAccess(user?.user_metadata?.yj_password_setup!==true);
       setRows(result);
       setEmployees(staff);
       if (active.role !== "MANAGER") setInvite("");
     },
-    [user?.id, clearPrivate],
+    [user?.id, clearPrivate,onAccess],
   );
   useEffect(() => {
     if (!org || !user || !operator) return;
@@ -287,7 +292,7 @@ export default function TeamWorkspace({
     const refresh = () => {
       if (!running.current && !document.hidden)
         void refreshRows(org, searchApplied).catch((e) => {
-          if (!cancelled) setMessage(teamError(e));
+          if (!cancelled) {clearPrivate();setMessage(teamError(e));}
         });
     };
     refresh();
@@ -299,6 +304,12 @@ export default function TeamWorkspace({
       document.removeEventListener("visibilitychange", refresh);
     };
   }, [org, user?.id, operator, refreshRows, searchApplied]);
+  async function sendReset(address:string) {
+    address=address.trim().toLowerCase();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) throw Error("請先填寫正確的登入電子郵件");
+    unwrap(await client.auth.resetPasswordForEmail(address,{redirectTo:"https://yongjiesystems.github.io/testing/?reset=1"}));
+    setMessage("若帳號可接收重設信，請到該信箱（含垃圾郵件）開啟最新連結，由本人設定至少12字元的新密碼。未收到請聯絡系統管理人員。");
+  }
   async function detail(head: RentalHead) {
     const token = generation.current;
     const newest = unwrap(
@@ -419,7 +430,7 @@ export default function TeamWorkspace({
               try {
                 unwrap(
                   await client.auth.signInWithPassword({
-                    email: email.trim(),
+                    email: email.trim().toLowerCase(),
                     password,
                   }),
                 );
@@ -459,10 +470,11 @@ export default function TeamWorkspace({
           </label>
           <button className="primary" disabled={busy}>
             登入租賃團隊
-          </button>
+          </button><button type="button" disabled={busy} onClick={()=>void run(()=>sendReset(email))}>忘記密碼／寄送重設信</button>
         </form>
       ) : (
         <>
+          <p>密碼由本人設定，主管看不到密碼。需要變更自己的密碼，請在<a href="https://yongjiesystems.github.io/testing/?tab=team" target="_blank" rel="noopener noreferrer">檢測系統的團隊作業</a>按「變更我的密碼」。</p>
           <div className="team-identity">
             <p>
               {user.email} · {ROLES[role] || "待確認權限"} · {orgName}
@@ -922,6 +934,7 @@ export default function TeamWorkspace({
                       </article>
                     ))}
                   </div>
+                  <h4>協助員工重設密碼</h4><p>只寄到員工名單中的本人信箱；主管不能查看或代填密碼。</p>{employees.filter(m=>m.active && m.user_id).map(m=><button key={m.email} disabled={busy} onClick={()=>void run(()=>sendReset(m.email))}>寄送重設信：{m.display_name}（{m.email}）</button>)}
                   {invite && (
                     <div className="callout">
                       <p>
