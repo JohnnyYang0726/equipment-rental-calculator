@@ -5,6 +5,7 @@ import { money, quoteText } from "./quote-core";
 import {
   teamClient as client,
   teamError,
+  loginSession, LOGIN_MODES, watchLoginSession,
   ROLES,
   officialText,
   officialHtml,
@@ -88,6 +89,7 @@ export default function TeamWorkspace({
     [org, setOrg] = useState(""),
     [orgName, setOrgName] = useState(""),
     [role, setRole] = useState("");
+  const [loginMode,setLoginMode]=useState(loginSession.preference());
   const [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
     [busy, setBusy] = useState(false),
@@ -158,6 +160,7 @@ export default function TeamWorkspace({
   const context = useCallback(
     async (preferred?: string) => {
       const token = ++generation.current;
+      loginSession.active();
       const { data, error } = await client.auth.getUser();
       if (error || !data.user) {
         if (token !== generation.current) return;
@@ -215,6 +218,11 @@ export default function TeamWorkspace({
     [clearPrivate,onAccess],
   );
   useEffect(() => {
+    const stopRetention=watchLoginSession(loginSession,()=>{
+      ++generation.current; setUser(null); setMemberships([]); setOrg(''); clearPrivate();
+      setMessage('登入保存期限已到、已在其他分頁登出或變更帳號，請重新登入。');
+      client.auth.stopAutoRefresh();
+    });
     void context().catch((e) => {clearPrivate();setMessage(teamError(e));});
     const {
       data: { subscription },
@@ -232,6 +240,7 @@ export default function TeamWorkspace({
         );
     });
     return () => {
+      stopRetention();
       subscription.unsubscribe();
       ++generation.current;
     };
@@ -428,12 +437,14 @@ export default function TeamWorkspace({
             e.preventDefault();
             void run(async () => {
               try {
+                loginSession.begin(loginMode);
                 unwrap(
                   await client.auth.signInWithPassword({
                     email: email.trim().toLowerCase(),
                     password,
                   }),
                 );
+                client.auth.startAutoRefresh();
                 await context();
                 setMessage(
                   "登入成功。共用報價只在按同步時上傳，本機草稿不會自動上傳。",
@@ -468,6 +479,8 @@ export default function TeamWorkspace({
               required
             />
           </label>
+          <label className="field"><span>登入保存方式</span><select value={loginMode} disabled={busy} onChange={e=>setLoginMode(e.target.value)}>{Object.entries(LOGIN_MODES).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+          <p className="helper">24 小時／30 天從登入成功起算，關閉網頁後仍可恢復；共用電腦請選僅本次登入。登出、無痕模式或清除網站資料會使記住登入失效。各程式分別保存。共用電腦離開前請按登出；瀏覽器還原分頁可能保留本次登入。</p>
           <button className="primary" disabled={busy}>
             登入租賃團隊
           </button><button type="button" disabled={busy} onClick={()=>void run(()=>sendReset(email))}>忘記密碼／寄送重設信</button>
@@ -477,7 +490,7 @@ export default function TeamWorkspace({
           <p>密碼由本人設定，主管看不到密碼。需要變更自己的密碼，請在<a href="https://yongjiesystems.github.io/testing/?tab=team" target="_blank" rel="noopener noreferrer">檢測系統的團隊作業</a>按「變更我的密碼」。</p>
           <div className="team-identity">
             <p>
-              {user.email} · {ROLES[role] || "待確認權限"} · {orgName}
+              {user.email} · {ROLES[role] || "待確認權限"} · {orgName}<br/>{loginSession.describe()}
             </p>
             <div className="toolbar">
               <button
@@ -500,17 +513,17 @@ export default function TeamWorkspace({
                     const result = await client.auth.signOut({
                       scope: "local",
                     });
-                    if (result.error) throw result.error;
+                    loginSession.clear();
                     clearPrivate();
                     setUser(null);
                     if (hadLink) onClear();
                     setMessage(
-                      "已登出此分頁；從團隊載入的畫面已清除。本機另存的草稿仍在。",
+                      "已登出並清除此程式在本瀏覽器記住的登入；本機另存的草稿仍在。",
                     );
                   })
                 }
               >
-                登出此分頁
+                登出／清除記住登入
               </button>
             </div>
           </div>

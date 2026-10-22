@@ -2,14 +2,15 @@ import { createClient } from "@supabase/supabase-js";
 // Public key only. Database membership checks, RLS and checked RPCs enforce authorization.
 export const TEAM_URL = "https://buzcduwjeddaqwsrbwlf.supabase.co";
 export const TEAM_KEY = "sb_publishable_D-FJbw811QbRCF8Il57mTg_ilIQ3xnw";
-// A stable per-tab key also isolates Supabase BroadcastChannel notifications.
-const TAB_KEY = 'yj-rental-tab-auth-key';
-const authKey = sessionStorage.getItem(TAB_KEY) || 'yj-rental-auth-v1-' + crypto.randomUUID();
-sessionStorage.setItem(TAB_KEY, authKey);
+import { createLoginSession, LOGIN_MODES, watchLoginSession } from './login-session.js';
+export { LOGIN_MODES, watchLoginSession };
+export const loginSession = createLoginSession({namespace:'yj-rental-login-v1',local:globalThis.localStorage,tab:globalThis.sessionStorage});
+const previousKey=globalThis.sessionStorage?.getItem('yj-rental-tab-auth-key');
+if(previousKey) loginSession.migrateLegacy(globalThis.sessionStorage,previousKey);
 export const teamClient = createClient(TEAM_URL, TEAM_KEY, {
   auth: {
-    storage: sessionStorage,
-    storageKey: authKey,
+    storage: loginSession.storage,
+    storageKey: loginSession.storageKey,
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: false,
