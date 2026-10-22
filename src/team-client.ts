@@ -45,3 +45,6 @@ export function teamError(e: unknown) {
 
 export { quoteFingerprint, officialText, officialHtml } from "./team-format";
 export type { RentalHead, RentalSnapshot, RentalDocument } from "./team-format";
+
+// Read only from a verified, active database membership; never from user_metadata.
+export const effectiveTeamRole = (member: {role:string;staff_access?:boolean}) => member.role==='ENGINEER' && member.staff_access===true ? 'STAFF' : member.role;

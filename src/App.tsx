@@ -281,7 +281,7 @@ export default function App() {
           <div>
             <p className="eyebrow">永捷系統科技 · 內部報價工具</p>
             <h1>
-              租賃詢價與多品項報價 <span>v1.4.0</span>
+              租賃詢價與多品項報價 <span>v1.5.0</span>
             </h1>
             <p>先問需求，再逐項估價；特殊服務保留人工確認。</p>
           </div>
@@ -375,7 +375,7 @@ export default function App() {
           />
         )}
       </Suspense>
-      {!quoteAccess && <section className="card"><h2>請先使用員工帳號登入</h2><p>主管與客服／行政登入後才能估價。三套程式使用同一組帳號，各網站請分別登入。</p><a href="https://yongjiesystems.github.io/testing/?tab=warranty">公開保固與驅動查詢</a></section>}
+      {!quoteAccess && <section className="card"><h2>請先使用員工帳號登入</h2><p>主管、客服／行政與已開通助理權限的工程師登入後可估價。三套程式使用同一組帳號，各網站請分別登入。</p><a href="https://yongjiesystems.github.io/testing/?tab=warranty">公開保固與驅動查詢</a></section>}
       {quoteAccess && <>
       <div className="workspace">
         <main>

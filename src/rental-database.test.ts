@@ -123,8 +123,20 @@ before(async () => {
         ],
       );
   }
+ await db.exec(await readFile(new URL('../supabase/engineer_staff_access.sql',import.meta.url),'utf8'));
 });
 after(() => db.close());
+
+test('opt-in engineer gets staff rental operations without approval or employee management',async()=>{
+ await db.query('update public.yj_memberships set staff_access=true where user_id=$1',[ids.engineer]);
+ try {
+  const r=await save(draft(),0,null,'engineer');assert.equal(r.head.revision,1);
+  assert.ok((await as('engineer','select * from public.yj_rental_quotes')).length>0);
+  await assert.rejects(as('engineer','select public.yj_decide_rental($1,1,1,$2,$3)',[r.head.id,'APPROVED','no']),{code:'42501'});
+  await assert.rejects(as('engineer','update public.yj_memberships set role=\'MANAGER\''),{code:'42501'});
+  assert.equal((await as('engineer','select * from public.yj_rental_quotes where org_id=$1',[ids.otherOrg])).length,0);
+ } finally { await db.query('update public.yj_memberships set staff_access=false where user_id=$1',[ids.engineer]); }
+});
 test("anonymous cannot read rental tables, call mutations or private calculation", async () => {
   await db.exec("set role anon");
   try {

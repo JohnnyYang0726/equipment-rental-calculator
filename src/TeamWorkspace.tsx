@@ -5,6 +5,7 @@ import { money, quoteText } from "./quote-core";
 import {
   teamClient as client,
   teamError,
+  effectiveTeamRole,
   loginSession, LOGIN_MODES, watchLoginSession,
   ROLES,
   officialText,
@@ -21,6 +22,7 @@ type Member = {
   display_name: string;
   role: string;
   active: boolean;
+  staff_access?: boolean;
 };
 type Version = {
   revision: number;
@@ -175,7 +177,7 @@ export default function TeamWorkspace({
       const ms = unwrap(
         await client
           .from("yj_memberships")
-          .select("org_id,user_id,email,display_name,role,active")
+          .select("org_id,user_id,email,display_name,role,active,staff_access")
           .eq("user_id", u.id)
           .eq("active", true),
       ) as Member[];
@@ -200,9 +202,9 @@ export default function TeamWorkspace({
       if (token !== generation.current) return;
       setOrg(chosen.org_id);
       setOrgName(o.name);
-      setRole(chosen.role);
-      onAccess(["MANAGER","STAFF"].includes(chosen.role) && u.user_metadata?.yj_password_setup!==true);
-      if (!["MANAGER", "STAFF"].includes(chosen.role)) {
+      setRole(effectiveTeamRole(chosen));
+      onAccess(["MANAGER","STAFF"].includes(effectiveTeamRole(chosen)) && u.user_metadata?.yj_password_setup!==true);
+      if (!["MANAGER", "STAFF"].includes(effectiveTeamRole(chosen))) {
         setRows([]);
         setEmployees([]);
         setSelected(null);
@@ -251,14 +253,14 @@ export default function TeamWorkspace({
       const active = unwrap(
         await client
           .from("yj_memberships")
-          .select("role,active")
+          .select("role,active,staff_access")
           .eq("org_id", orgId)
           .eq("user_id", user?.id || "00000000-0000-0000-0000-000000000000")
           .eq("active", true)
           .maybeSingle(),
       );
       if (token !== generation.current || orgRef.current !== orgId) return;
-      if (!active || !["MANAGER", "STAFF"].includes(active.role)) {
+      if (!active || !["MANAGER", "STAFF"].includes(effectiveTeamRole(active))) {
         clearPrivate();
         setMessage("帳號已停用或權限已變更，請重新確認登入狀態。");
         return;
@@ -281,13 +283,13 @@ export default function TeamWorkspace({
           ? (unwrap(
               await client
                 .from("yj_memberships")
-                .select("org_id,user_id,email,display_name,role,active")
+                .select("org_id,user_id,email,display_name,role,active,staff_access")
                 .eq("org_id", orgId)
                 .order("display_name"),
             ) as Member[])
           : [];
       if (token !== generation.current || orgRef.current !== orgId) return;
-      setRole(active.role);
+      setRole(effectiveTeamRole(active));
       onAccess(user?.user_metadata?.yj_password_setup!==true);
       setRows(result);
       setEmployees(staff);
@@ -490,7 +492,7 @@ export default function TeamWorkspace({
           <p>密碼由本人設定，主管看不到密碼。需要變更自己的密碼，請在<a href="https://yongjiesystems.github.io/testing/?tab=team" target="_blank" rel="noopener noreferrer">檢測系統的團隊作業</a>按「變更我的密碼」。</p>
           <div className="team-identity">
             <p>
-              {user.email} · {ROLES[role] || "待確認權限"} · {orgName}<br/>{loginSession.describe()}
+              {user.email} · {memberships.find(m=>m.org_id===org)?.role==='ENGINEER' ? '工程師（助理同等作業權限）' : ROLES[role] || "待確認權限"} · {orgName}<br/>{loginSession.describe()}
             </p>
             <div className="toolbar">
               <button
