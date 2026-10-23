@@ -1,3 +1,4 @@
+import {createNoticeBoard} from './notice-board.js';
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import type { Quote } from "./quote-core";
@@ -46,9 +47,9 @@ type Link = {
   fingerprint: string;
 };
 const statusName = {
-  REVIEW: "待主管核准",
-  APPROVED: "已核准",
-  REJECTED: "已退回",
+  REVIEW: "已保存",
+  APPROVED: "已保存（舊核准紀錄）",
+  REJECTED: "歷史退回紀錄",
 };
 const time = (s: string) =>
   new Date(s).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" });
@@ -91,6 +92,9 @@ export default function TeamWorkspace({
     [org, setOrg] = useState(""),
     [orgName, setOrgName] = useState(""),
     [role, setRole] = useState("");
+  const noticeBoard=useRef<ReturnType<typeof createNoticeBoard>|null>(null);
+  useEffect(()=>{const b=createNoticeBoard();noticeBoard.current=b;return()=>{b.dispose();noticeBoard.current=null}},[]);
+  useEffect(()=>{noticeBoard.current?.setContext({client,user,org,role})},[user,org,role]);
   const [loginMode,setLoginMode]=useState(loginSession.preference());
   const [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
@@ -381,7 +385,7 @@ export default function TeamWorkspace({
     await refreshRows(org, searchApplied);
     await detail(document.head);
     setMessage(
-      `已同步 ${document.head.number} 第${document.head.revision}版；${document.head.workflow === "APPROVED" ? "內容未變，原核准仍有效" : "正式報價須主管核准"}。`,
+      `已同步 ${document.head.number} 第${document.head.revision}版；${document.head.workflow === "APPROVED" ? "內容未變，沿用已保存版本" : "已保存，同事可接手"}。`,
     );
   }
   async function official(head: RentalHead, mode: "copy" | "text" | "print") {
@@ -405,7 +409,7 @@ export default function TeamWorkspace({
       );
     setMessage(
       mode === "copy"
-        ? "已向後端核對最新核准版本並複製正式報價。"
+        ? "✓ 已核對最新共用版本並複製客戶報價。"
         : mode === "print"
           ? "正式報價已下載；開啟檔案後可按「列印正式報價」。"
           : "正式文字報價已下載。",
@@ -425,7 +429,7 @@ export default function TeamWorkspace({
       <header className="team-header">
         <div>
           <p className="eyebrow">共用員工帳號 · 共用報價版本</p>
-          <h2 id="rental-team-title">租賃團隊／主管核准</h2>
+          <h2 id="rental-team-title">租賃共用紀錄</h2>
         </div>
         <button onClick={() => dialog.current?.close()}>返回詢價表</button>
       </header>
@@ -561,14 +565,14 @@ export default function TeamWorkspace({
                     : "目前未連結共用報價；第一次同步會建立新單。"}
                 </p>
                 <p className="helper">
-                  只有按此按鈕才上傳本張報價；不會上傳本機其他草稿。資料仍待估也可先同步，但無法核准。
+                  只有按此按鈕才上傳本張報價；不會上傳本機其他草稿。費用未齊也可先保存詢價；確定報價仍須補齊必要費用與條件。
                 </p>
                 <button
                   className="primary"
                   disabled={busy}
                   onClick={() => void run(sync)}
                 >
-                  同步目前報價／送主管核准
+                  保存到團隊
                 </button>
               </section>
               <section className="team-section">
@@ -619,7 +623,7 @@ export default function TeamWorkspace({
                           disabled={busy}
                           onClick={() => void run(() => detail(h))}
                         >
-                          查看版本與核准
+                          查看版本與明細
                         </button>
                         <button
                           disabled={busy}
@@ -649,12 +653,12 @@ export default function TeamWorkspace({
                         >
                           載入修改
                         </button>
-                        {h.workflow === "APPROVED" && (
+                        {true && (
                           <button
                             disabled={busy}
                             onClick={() => void run(() => official(h, "copy"))}
                           >
-                            複製正式報價
+                            複製客戶報價
                           </button>
                         )}
                       </div>
@@ -682,7 +686,7 @@ export default function TeamWorkspace({
                         fingerprint: quoteFingerprint(d.snapshot.quote),
                       });
                       setPendingLoad(null);
-                      setMessage("已載入共用版本；修改後需同步並重新核准。");
+                      setMessage("已載入共用版本；修改後再保存，歷史版本會保留。");
                       dialog.current?.close();
                     }}
                   >
@@ -715,7 +719,7 @@ export default function TeamWorkspace({
                   {view && (
                     <details className="extra">
                       <summary>
-                        展開此版明細（歷史唯讀，不代表最新核准）
+                        展開此版明細（歷史唯讀，不代表最新報價）
                       </summary>
                       <pre>
                         {quoteText(view.quote, { totals: view.totals, internal: true })}
@@ -729,57 +733,7 @@ export default function TeamWorkspace({
                       )}
                     </details>
                   )}
-                  {manager && (
-                    <div className="decision-box">
-                      <label className="field">
-                        <span>
-                          主管核准／退回原因（核對最新第{selected.revision}版）
-                        </span>
-                        <textarea
-                          value={reason}
-                          maxLength={1000}
-                          onChange={(e) => setReason(e.target.value)}
-                        />
-                      </label>
-                      <div className="toolbar">
-                        {(["APPROVED", "REJECTED"] as const).map((decision) => (
-                          <button
-                            key={decision}
-                            className={decision === "APPROVED" ? "primary" : ""}
-                            disabled={busy || !reason.trim()}
-                            onClick={() =>
-                              void run(async () => {
-                                unwrap(
-                                  await client.rpc("yj_decide_rental", {
-                                    p_id: selected.id,
-                                    p_expected: selected.revision,
-                                    p_state: selected.state_version,
-                                    p_decision: decision,
-                                    p_reason: reason,
-                                  }),
-                                );
-                                await refreshRows(org, searchApplied);
-                                await detail(selected);
-                                setMessage(
-                                  decision === "APPROVED"
-                                    ? "主管已核准此版，正式輸出仍會再次核對後端狀態。"
-                                    : "已退回並記錄原因，修改後同步新版本。",
-                                );
-                              })
-                            }
-                          >
-                            {decision === "APPROVED"
-                              ? "核准最新版本"
-                              : "退回／撤回核准"}
-                          </button>
-                        ))}
-                      </div>
-                      <p className="helper">
-                        核准會再次核對版本與完整資料；不能用舊清單核准新價格，也不能核准待估項目。
-                      </p>
-                    </div>
-                  )}
-                  {selected.workflow === "APPROVED" && (
+                  {true && (
                     <div className="toolbar">
                       <button
                         disabled={busy}
@@ -787,7 +741,7 @@ export default function TeamWorkspace({
                           void run(() => official(selected, "copy"))
                         }
                       >
-                        複製此案正式報價
+                        複製此案客戶報價
                       </button>
                       <button
                         disabled={busy}
@@ -795,7 +749,7 @@ export default function TeamWorkspace({
                           void run(() => official(selected, "text"))
                         }
                       >
-                        下載正式文字
+                        下載客戶文字
                       </button>
                       <button
                         disabled={busy}
@@ -803,12 +757,12 @@ export default function TeamWorkspace({
                           void run(() => official(selected, "print"))
                         }
                       >
-                        下載正式報價（可列印）
+                        下載／列印客戶報價
                       </button>
                     </div>
                   )}
                   <details className="extra">
-                    <summary>異動與核准紀錄</summary>
+                    <summary>保存與異動紀錄</summary>
                     {events.map((e) => (
                       <p className="audit-line" key={e.id}>
                         {time(e.created_at)} · {e.actor_name} · 第{e.revision}版

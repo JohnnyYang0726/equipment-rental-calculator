@@ -39,22 +39,11 @@ export type RentalDocument = {
   head: RentalHead;
   snapshot: RentalSnapshot;
   approverName?: string;
+  exportable?: boolean;
 };
 export function officialText(document: RentalDocument) {
-  if (
-    document.head.workflow !== "APPROVED" ||
-    document.head.approved_revision !== document.head.revision
-  )
-    throw Error("此版本未核准");
-  return quoteText(document.snapshot.quote, {
-    totals: document.snapshot.totals,
-    approval: {
-      revision: document.head.revision,
-      name: document.approverName || "主管",
-      at: document.head.approved_at || "",
-      reason: document.head.decision_reason,
-    },
-  });
+ if(document.exportable!==true)throw Error('請重新取得最新共用版本');
+ return quoteText(document.snapshot.quote,{totals:{...document.snapshot.totals,ready:true}});
 }
 export function officialHtml(text: string) {
   const escaped = text

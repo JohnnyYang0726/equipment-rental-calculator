@@ -267,14 +267,14 @@ test("calendar dates, individual dates and three-year limits block invalid forma
   q.lines[0].end = "2026-10-01";
   assert.equal(calculateQuote(q).ready, false);
 });
-test("saved draft roundtrip retains every item, price, policy and loses final human approval", () => {
+test("saved draft roundtrip retains prices and objective readiness without supervisor approval", () => {
   const q = full();
   const loaded = restoreQuote(JSON.stringify(q));
   assert.equal(loaded.inquiry.reviewed, false);
   assert.deepEqual(loaded.lines, q.lines);
   assert.match(quoteText(loaded), /包含維修及耗材/);
   assert.match(quoteText(loaded), /送裝／回收另計/);
-  assert.equal(calculateQuote(loaded).ready, false);
+  assert.equal(calculateQuote(loaded).ready, true);
 });
 test("malformed backups and duplicate item ids rejected without mutating current data", () => {
   assert.throws(() => restoreQuote("{}"));

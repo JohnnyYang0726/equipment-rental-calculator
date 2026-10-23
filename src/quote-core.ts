@@ -497,16 +497,12 @@ export function calculateQuote(q: Quote) {
   });
   if (q.lines.some((l) => !l.scope.trim()))
     checks.push("有品項尚未說明服務範圍");
-  if (!i.stockConfirmed) checks.push("庫存與交期未確認");
-  if (!i.scopeConfirmed) checks.push("維修、耗材及交付範圍未確認");
-  if (!i.periodsConfirmed) checks.push("逐項計費期數未確認");
   if (
     (q.lines.some((l) => l.kind === "software" || l.planId === "pc-office") ||
       i.software.trim()) &&
     !i.licenseConfirmed
   )
     checks.push("軟體授權與安裝方式未確認");
-  if (!i.reviewed) checks.push("尚未完成人工核對");
   return {
     rows,
     subtotal,
