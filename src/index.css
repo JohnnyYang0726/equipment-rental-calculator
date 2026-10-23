@@ -972,6 +972,10 @@ button:disabled {
 
 /* Comfortable quotation entry: screen only; quoted prices and print layouts are unchanged. */
 @media screen {
+ .summary-panel dt,.summary-panel dd,.summary-panel .status,.summary-panel .order-id,.summary-panel .summary-note,.summary-panel .helper {font-size:17px!important;line-height:1.8;}
+ .summary-money p,.summary-money span,.summary-money small {font-size:17px!important;color:#fff;line-height:1.8;}
+}
+@media screen {
  body {font-family:"Microsoft JhengHei","PingFang TC",system-ui,sans-serif;font-size:18px;line-height:1.8;color:#17304d;}
  button,input,select,textarea {font-family:inherit;}
  button {font-size:18px!important;min-height:52px;line-height:1.6!important;white-space:normal;}
