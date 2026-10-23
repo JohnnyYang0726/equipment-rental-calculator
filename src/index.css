@@ -969,3 +969,52 @@ button:disabled {
  .summary-panel {max-height:calc(100dvh - 40px);overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;}
  .summary-panel .customer-preview pre {max-height:none;overflow:visible;}
 }
+
+/* Comfortable quotation entry: screen only; quoted prices and print layouts are unchanged. */
+@media screen {
+ body {font-family:"Microsoft JhengHei","PingFang TC",system-ui,sans-serif;font-size:18px;line-height:1.8;color:#17304d;}
+ button,input,select,textarea {font-family:inherit;}
+ button {font-size:18px!important;min-height:52px;line-height:1.6!important;white-space:normal;}
+ input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea {font-size:18px!important;min-height:54px;line-height:1.7;border-color:#8da2bc!important;background-color:#fff;color:#172b47;}
+ input::placeholder,textarea::placeholder {color:#52657c;opacity:1;}
+ input[type=checkbox],input[type=radio] {width:24px;height:24px;flex-shrink:0;accent-color:#174eaf;}
+ label {font-size:18px!important;line-height:1.75!important;}
+ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible {outline:3px solid #2459c4;outline-offset:3px;}
+ .customer-preview summary {font-size:20px!important;min-height:52px;}
+ .customer-preview pre {font-size:18px!important;line-height:1.9;overflow-wrap:anywhere;}
+ .customer-preview p {font-size:17px!important;color:#425773;}
+}
+@media screen and (max-width:600px) {
+ button {min-height:52px;}
+ input,textarea,select {max-width:100%;}
+ .customer-preview {padding:16px;}
+ .customer-preview pre {padding:12px!important;font-size:18px!important;max-height:none!important;}
+}
+
+@media screen {
+ .field>span {font-size:18px;color:#17304d;font-weight:700;}
+ .helper,.eyebrow,.policy,.notice,.checklist,.summary-meta,.line p {font-size:17px;line-height:1.8;color:#425773;}
+ .check {font-size:18px;line-height:1.8;}
+ .card h2,.section-title h2 {font-size:24px;}
+ .summary-panel pre {font-size:18px!important;line-height:1.9;}
+ .summary-panel .customer-preview summary {font-size:20px;}
+ .summary-panel .customer-preview pre {font-size:18px;}
+ .summary-money strong {font-size:44px;}
+ .card,.line {border-color:#b8c9dd;}
+ .line-editor .toolbar {flex-wrap:wrap;}
+ .form-grid>* {min-width:0;}
+ .team-dialog {font-size:18px;}
+}
+@media screen and (max-width:1100px) {
+ .workspace {grid-template-columns:1fr;}
+ .summary-panel {position:static;max-height:none;overflow:visible;}
+}
+@media screen and (max-width:600px) {
+ .form-grid {grid-template-columns:1fr!important;}
+ .app-shell {padding:12px;}
+ .card {padding:18px;}
+ .toolbar {flex-wrap:wrap;gap:10px;}
+ .toolbar button {flex:1 1 100%;}
+ .line-heading {flex-wrap:wrap;}
+ .summary-money strong {font-size:38px;}
+}
