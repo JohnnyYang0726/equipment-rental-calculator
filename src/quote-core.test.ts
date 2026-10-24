@@ -4,12 +4,48 @@ import {
   PLANS,
   newQuote,
   makeLine,
+  pricingMode,
+  changePricingMode,
   calculateLine,
   calculateQuote,
   quoteText,
   restoreQuote,
   type Quote,
 } from "./quote-core.ts";
+
+test("pricing choice replaces the public base, multiplies only quantity and restores public price", () => {
+  let line = makeLine("equipment", "pc-screen");
+  Object.assign(line, { qty: "3", periods: "15" });
+  assert.equal(calculateLine(line).amount, 9000);
+  line = changePricingMode(line, "custom");
+  assert.equal(calculateLine(line).amount, null);
+  assert.equal(pricingMode(line), "custom");
+  Object.assign(line, { override: "1800", overrideReason: "十五天專案價" });
+  assert.equal(calculateLine(line).amount, 5400);
+  assert.equal(calculateLine(line).discountBase, 0);
+  const q = newQuote();q.lines = [line];
+  assert.equal(calculateQuote(restoreQuote(JSON.stringify(q))).subtotal, 5400);
+  line = changePricingMode(line, "standard");
+  assert.equal(line.override, "");assert.equal(line.overrideReason, "");
+  assert.equal(calculateLine(line).amount, 9000);
+});
+test("custom zero is explicit, printer usage remains extra and pending never falls back", () => {
+  const line = changePricingMode(makeLine("equipment", "laser-bw"), "custom");
+  Object.assign(line, { qty: "2", periods: "5", pages: "80", overrideReason: "專案價" });
+  assert.equal(calculateLine(line).amount, null);
+  line.override = "0";
+  assert.equal(calculateLine(line).amount, 60);
+  line.override = "500";
+  assert.equal(calculateLine(line).amount, 1060);
+});
+test("older custom quotations keep prices and eligibility without migration", () => {
+  const line = makeLine("equipment", "pc-month");
+  Object.assign(line, { qty: "2", periods: "6", override: "2500", overrideReason: "舊專案", discountable: true });
+  assert.equal(pricingMode(line), "custom");
+  assert.equal(changePricingMode(line, "custom"), line);
+  assert.equal(calculateLine(line).amount, 5000);
+  assert.equal(calculateLine(line).discountBase, 5000);
+});
 
 // Independent expectations transcribed from the original published calculator.
 const original: Record<string, [number, number]> = {

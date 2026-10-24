@@ -360,6 +360,8 @@ export default function TeamWorkspace({
   async function sync() {
     if (!org || !operator) throw Error("請先以主管或客服登入");
     const submitted = structuredClone(quoteRef.current);
+    if (submitted.lines.some(line => line.override === "待估"))
+      throw Error("客製化金額尚未填寫，請回到品項填每台整段基本租金後再保存團隊。可先保存本機草稿。");
     const current = linkRef.current;
     if (current && current.org !== org)
       throw Error("團隊不同，請先另開詢價或載入本團隊報價");

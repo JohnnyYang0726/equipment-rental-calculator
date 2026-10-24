@@ -351,6 +351,21 @@ function numeric(value: string, max: number, integer = false): number | null {
     ? n
     : null;
 }
+// Keep the existing stored override contract, including older shared quotations.
+// A pending custom amount stays nonempty so neither client nor server falls back to the public price.
+export function pricingMode(line: Line): "standard" | "custom" {
+  return line.override.trim() ? "custom" : "standard";
+}
+export function changePricingMode(line: Line, mode: "standard" | "custom"): Line {
+  if (pricingMode(line) === mode) return line;
+  const p = PLANS.find(p => p.id === line.planId);
+  const customScope = p?.tier
+    ? "短租最多15天；基本租金依本次客製報價，不自動切換月租。"
+    : p?.note.replace(/沿用每月[\d,]+元/g, "基本租金依本次客製報價").replace(/每台每色[\d,]+元/g, "基本費依本次客製報價");
+  return { ...line, override: mode === "custom" ? "待估" : "", overrideReason: "",
+    discountable: mode === "standard" && line.kind === "equipment" && p?.id !== "laser-cm",
+    scope: mode === "custom" && line.scope === p?.note ? customScope! : mode === "standard" && line.scope === customScope ? p!.note : line.scope };
+}
 const cents = (n: number) => Math.round(n * 100);
 export function calculateLine(line: Line) {
   const errors: string[] = [];
@@ -396,9 +411,9 @@ export function calculateLine(line: Line) {
   }
   if (line.override.trim()) {
     const override = numeric(line.override, 10000000);
-    if (override === null) errors.push("人工調整金額格式不正確");
+    if (override === null) errors.push("請填客製化金額（每台整段基本租金），確認免費才填0");
     else base = override;
-    if (!line.overrideReason.trim()) errors.push("人工調價須填原因");
+    if (!line.overrideReason.trim()) errors.push("請填客製化報價說明");
   }
   const raw =
     base === null || !qty ? null : ((cents(base) + cents(usage)) * qty) / 100;

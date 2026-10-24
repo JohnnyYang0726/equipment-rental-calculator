@@ -5,11 +5,26 @@ import { PGlite } from "@electric-sql/pglite";
 import {
   newQuote,
   makeLine,
+  changePricingMode,
   PLANS,
   calculateQuote,
   type Quote,
 } from "./quote-core.ts";
 const db = new PGlite();
+
+test("new custom choice survives shared persistence with the same amount and deposit", async () => {
+ const q = draft();q.lines[0] = changePricingMode(q.lines[0], "custom");
+ Object.assign(q.lines[0], { qty: "3", periods: "6", override: "2500", overrideReason: "半年整段專案價" });
+ const saved = await save(q);const local = calculateQuote(q);
+ assert.equal(saved.snapshot.totals.subtotal, 7500);
+ for(const k of ["total", "discountBase", "deposit", "suggestedDeposit", "ready"] as const) assert.equal(saved.snapshot.totals[k], local[k]);
+ assert.equal(saved.snapshot.quote.lines[0].override, "2500");
+});
+test("unfinished custom price is rejected by the database, never silently uses public rate", async () => {
+ const q = draft();q.lines[0] = changePricingMode(q.lines[0], "custom");
+ q.lines[0].overrideReason = "待確認專案";
+ await assert.rejects(save(q), /金額|數值|數字|numeric/);
+});
 const ids = Object.fromEntries(
   [
     "org",

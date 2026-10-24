@@ -1,4 +1,20 @@
 @import "tailwindcss";
+.pricing-choice {display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0;}
+.pricing-choice button {display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:16px;border:2px solid #b7c8df;border-radius:14px;background:#fff;color:#17304d;}
+.pricing-choice button span {font-size:16px;line-height:1.6;}
+.pricing-choice button.selected {background:#174eaf;color:#fff;border-color:#174eaf;box-shadow:0 3px 10px #174eaf22;}
+.custom-price-box {background:#edf5ff;border:1px solid #9db8dc;border-left:5px solid #174eaf;border-radius:12px;padding:18px;margin:16px 0;}
+.custom-price-box h4,.terms-block h3 {font-size:21px;font-weight:700;margin:0 0 14px;}
+.terms-block {border:1px solid #bdcce0;border-radius:16px;padding:22px;margin:20px 0;background:white;}
+.deposit-block {border:2px solid #8baad2;background:#f1f7ff;}
+.deposit-reference {display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:16px;background:white;border-radius:12px;padding:16px;}
+.deposit-reference strong {font-size:24px;color:#174eaf;}
+.discount-block summary {display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;min-height:52px;list-style:revert;}
+.discount-block summary span {font-size:17px;color:#425773;}
+.delivery-row {background:#f6f9fd;border:1px solid #bdcce0;border-radius:14px;margin:16px 0;padding:18px;}
+.delivery-row h4 {font-size:20px;font-weight:700;}
+.price-formula {font-size:20px;font-weight:700;color:#174eaf;margin-top:12px;}
+@media screen and (max-width:600px) {.pricing-choice {grid-template-columns:1fr;}.terms-block {padding:16px;}.discount-block summary {align-items:flex-start;flex-direction:column;}.delivery-shortcuts button {width:100%;}.delivery-row {padding:14px;}}
 :root {
   font-family:
     Inter, "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;

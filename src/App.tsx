@@ -17,6 +17,8 @@ import {
   KIND_NAMES,
   newQuote,
   makeLine,
+  pricingMode,
+  changePricingMode,
   calculateQuote,
   quoteText,
   restoreQuote,
@@ -88,6 +90,12 @@ function Check({
     </label>
   );
 }
+function PricingChoice({ value, onChange }: { value: "standard" | "custom"; onChange: (value: "standard" | "custom") => void }) {
+  return <div className="pricing-choice" role="group" aria-label="計價方式（擇一）">
+    <button type="button" aria-pressed={value === "standard"} className={value === "standard" ? "selected" : ""} onClick={() => onChange("standard")}><strong>公版計價</strong><span>依既有方案及期數計算</span></button>
+    <button type="button" aria-pressed={value === "custom"} className={value === "custom" ? "selected" : ""} onClick={() => onChange("custom")}><strong>客製化報價</strong><span>自行填每台整段基本租金</span></button>
+  </div>;
+}
 function download(name: string, text: string, type: string) {
   const u = URL.createObjectURL(new Blob([text], { type }));
   const a = document.createElement("a");
@@ -99,8 +107,8 @@ function download(name: string, text: string, type: string) {
 const HELP = [
   "使用本人帳號，不必向主管索取每日核准。 三套使用同一組員工帳號，各網站分別登入。選24小時、專用電腦30天或共用電腦僅本次登入。 工程師帳號會顯示「助理同等作業權限」，可照助理方式報價。 主管負責新增／停用員工、調整帳號權限、查看主管私有成本及發布公司公告；一般報價與收送安排不再等主管核准。 忘記密碼時寄重設信，由本人開最新信件設定；不要把密碼交給同事。 先按更新團隊資料，必要時登出重登；停用或未開通帳號請找主管。 離開時登出；本機草稿與團隊紀錄是分開保存的。",
   "先問需求，再用同一張單加入多個品項。 問設備、數量、用途、起租與歸還日期。 問軟體、網路環境、現場安裝、收送及是否急件。 填客戶、聯絡方式、報價人員與交付地點。 不知道的費用先留待估，確認免收才填0。 所有租賃含維修及耗材；送裝、回收另計，租期1天至3年。 先確認庫存與人員，才向客戶承諾交付時間。",
-  "設備、軟體、網路、收送及急件分項列清楚。 選原價設備方案並加入報價，核對數量與計費期數。 半年填6個月、全年填12個月；日期記錄不會自動改計費期數。 特殊設備、軟體、網路工程與急件用人工報價。 已包含的螢幕、Office或工時不要再加一次。 有軟體時仍要確認授權來源、版本及安裝方式。 列印設備的額度與超印費依各品項約定，不是不限量承諾。",
-  "保留必要條件，取消重複的內部確認勾選。 確認送裝及回收費已分項加入。 優惠只作用在選定的設備基本租金，優惠金額與原因要核對。 確認稅額、另列押金、付款安排及有效期限。 費用或條件未齊可保存詢價；確定報價需補齊必要欄位，不需主管核准。 保存報價不會保留庫存或自動安排出車。 本次只簡化流程，原價與押金參考未調整。",
+  "設備、軟體、網路、收送及急件分項列清楚。 先選「公版計價」或「客製化報價」，再選設備並加入。公版按原方案及期數計算；客製價填「每台整段基本租金」及報價說明，取代公版基本租金，仍乘台數，超印另計。切回公版會清除客製金額與說明。客製價預設不再疊加優惠。核對數量與計費期數。 半年填6個月、全年填12個月；日期記錄不會自動改計費期數。 特殊設備、軟體、網路工程與急件用人工報價。 已包含的螢幕、Office或工時不要再加一次。 有軟體時仍要確認授權來源、版本及安裝方式。 列印設備的額度與超印費依各品項約定，不是不限量承諾。",
+  "保留必要條件，取消重複的內部確認勾選。 在STEP 03收送區按「送裝費」或「回收費」加入，可直接修改金額及範圍。送裝公版800元／次，回收無預設價；相同快捷項目不會重複加入。收送安排不會自動加費或刪除既有項目。確認送裝及回收費已分項加入。 優惠只作用在選定的設備基本租金，優惠金額與原因要核對。 押金獨立選「另收／免收／待確認」。另收時填整張報價的押金總額，可按「帶入參考總額」後調整；免收需填原因。押金不計入租金。設備優惠預設收起，需要時才展開；取消優惠可按「取消本次優惠」。確認稅額、付款安排及有效期限。 費用或條件未齊可保存詢價；確定報價需補齊必要欄位，不需主管核准。 保存報價不會保留庫存或自動安排出車。 本次只簡化流程，原價與押金參考未調整。",
   "同事都以最新保存版本接手，不再走核准流程。 按「團隊紀錄」，再按「保存到團隊」。 從共用清單搜尋客戶或單號，可載入修改。 第一次保存建立共用單號；修改後再保存，歷史版本會保留。 網路失敗時保留本機草稿；成功提示才代表共用保存完成。 不影響助理及已開通同等權限工程師正常估價。 只能看本人所屬團隊的資料，不會因取消核准就開放其他團隊。",
   "報價條件要清楚，文字不必長。 先看客戶報價預覽，核對品項、數量、租期、金額、押金及交付約定。 本機按「複製客戶報價」或「列印客戶報價」。 共用清單的客戶版輸出會核對最新版本及必要條件。 客戶版不寫草稿，但有待估時會清楚標示，不能當確定價格。 JSON備份含內部資料，不是客戶報價。 費用、庫存與交期仍依雙方確認；保存不代表已履約。",
   "主管寫一次，同事在三套頁面上方都能看到。 主管登入後，在頁面上方「公司公告」展開「主管：發布／管理公告」。 填標題與內容，按「發布公告」。只能填純文字，不需要排版。 三套程式約30秒內更新；一般同事只需閱讀，不必打卡。 要修改時選既有公告，改字後發布；不再適用時按下架，異動紀錄仍保留。 同一團隊三套共用公告，不必每套各發一次。 已發布的公告仍可顯示；沒有公告也不影響報價。"
@@ -109,6 +117,7 @@ export default function App() {
   const [q, setQ] = useState<Quote>(newQuote);
   const [kind, setKind] = useState<Kind>("equipment");
   const [planId, setPlanId] = useState(PLANS[0].id);
+  const [addPricing, setAddPricing] = useState<"standard" | "custom">("standard");
   const [manual, setManual] = useState(MANUAL.equipment[0]);
   const [editing, setEditing] = useState("");
   const [undo, setUndo] = useState<Line | null>(null);
@@ -168,9 +177,18 @@ export default function App() {
           "原800元／次運送與網路驅動設定；請註明本次涵蓋地點與設定台數，回收另計。";
       }
     }
-    edit((prev) => ({ ...prev, lines: [...prev.lines, l] }));
+    const added = l.planId && addPricing === "custom" ? changePricingMode(l, "custom") : l;
+    edit((prev) => ({ ...prev, lines: [...prev.lines, added] }));
     setEditing(l.id);
     setMessage("已加入「" + l.name + "」，請確認數量、期數及範圍。");
+  }
+  function addDelivery(name: string, price: string) {
+    if (q.lines.length >= 100) { setMessage("最多100項，請另開報價"); return; }
+    if (q.lines.some(l => l.kind === "delivery" && l.name === name)) { setMessage("此收送項目已加入，請在下方直接修改，避免重複計費。"); return; }
+    const item = makeLine("delivery");
+    Object.assign(item, { name, price, scope: name === "送裝與網路驅動設定" ? "送裝與網路驅動設定，請確認涵蓋地址與設定台數；不含回收。" : "到期回收費另計，請確認回收地址、台數與時間。" });
+    edit(v => ({ ...v, lines: [...v.lines, item] }));
+    setMessage("已加入「" + name + "」，請在收送區確認金額與範圍。");
   }
   function save() {
     try {
@@ -266,7 +284,7 @@ export default function App() {
           <div>
             <p className="eyebrow">永捷系統科技 · 內部報價工具</p>
             <h1>
-              租賃詢價與多品項報價 <span>v2.0.0</span>
+              租賃詢價與多品項報價 <span>v2.1.0</span>
             </h1>
             <p>先問需求，再逐項估價；特殊服務保留人工確認。</p>
           </div>
@@ -421,7 +439,7 @@ export default function App() {
               </div>
             </div>
             <div className="kind-tabs" aria-label="品項類別">
-              {(Object.keys(KIND_NAMES) as Kind[]).map((k) => (
+              {(Object.keys(KIND_NAMES) as Kind[]).filter(k => k !== "delivery").map((k) => (
                 <button
                   key={k}
                   aria-pressed={kind === k}
@@ -435,10 +453,11 @@ export default function App() {
                 </button>
               ))}
             </div>
+            {kind === "equipment" && planId !== "manual" && <><h3 className="pricing-label">新加入設備的計價方式</h3><PricingChoice value={addPricing} onChange={setAddPricing} /></>}
             <div className="add-item">
               {kind === "equipment" ? (
                 <>
-                  <Field label="原價設備方案">
+                  <Field label={addPricing === "custom" ? "選設備規格（基本租金自行填寫）" : "選公版設備方案"}>
                     <select
                       value={planId}
                       onChange={(e) => setPlanId(e.target.value)}
@@ -447,12 +466,11 @@ export default function App() {
                         <optgroup key={g} label={g}>
                           {PLANS.filter((p) => p.group === g).map((p) => (
                             <option key={p.id} value={p.id}>
-                              {p.name}｜
-                              {p.tier
+                              {p.name}{addPricing === "standard" ? "｜" + (p.tier
                                 ? "首日850，續日150"
                                 : money(p.rate) +
                                   "／" +
-                                  (p.id === "laser-cm" ? "色" : p.unit)}
+                                  (p.id === "laser-cm" ? "色" : p.unit)) : ""}
                             </option>
                           ))}
                         </optgroup>
@@ -493,7 +511,7 @@ export default function App() {
               </button>
             </div>
             <p className="helper">
-              原設備及800元運送設定沿用原價。新軟體、工程、急件與螢幕無預設價，請人工確認。空白是待估，確認免費才填0。
+              每項只採用一種計價方式。公版價格不變；客製化基本租金取代公版基本租金，不會相加。收送請在STEP 03填寫，未知金額先留空。
             </p>
             {kind === "urgent" && (
               <p className="callout">
@@ -519,13 +537,14 @@ export default function App() {
                 </div>
               )}
               {q.lines.map((l, n) => {
+                if (l.kind === "delivery") return null;
                 const r = s.rows[n],
                   p = PLANS.find((v) => v.id === l.planId);
                 return (
                   <article key={l.id} className="line-card">
                     <div className="line-heading">
                       <div>
-                        <span className="tag">{KIND_NAMES[l.kind]}</span>
+                        <span className="tag">{KIND_NAMES[l.kind]}{l.planId ? " · " + (pricingMode(l) === "custom" ? "客製化報價" : "公版計價") : " · 人工報價"}</span>
                         <h3>
                           {n + 1}. {l.name || "未命名項目"}
                         </h3>
@@ -564,6 +583,17 @@ export default function App() {
                     </div>
                     {editing === l.id && (
                       <div className="line-editor">
+                        {p && <><h4 className="pricing-label">本項計價方式（擇一）</h4><PricingChoice value={pricingMode(l)} onChange={mode => line(l.id, changePricingMode(l, mode))} /></>}
+                        {pricingMode(l) === "custom" && <div className="custom-price-box">
+                          <h4>客製化金額</h4>
+                          <div className="form-grid">
+                            <Field label={l.kind === "equipment" ? "每台整段基本租金（不含超印）" : "每項整段服務費"} hint="填單台整段金額，不要再乘台數或天數。確認免費才填0。">
+                              <input type="number" min="0" max="10000000" step="0.01" value={l.override === "待估" ? "" : l.override} placeholder="例如：每台租15天共1,800元，填1800" onChange={e => line(l.id, { override: e.target.value || "待估" })} />
+                            </Field>
+                            <Field label="客製化報價說明（必填）"><input value={l.overrideReason} maxLength={500} placeholder="例如：本次15天專案價" onChange={e => line(l.id, { overrideReason: e.target.value })} /></Field>
+                          </div>
+                          <p className="helper">本項基本費＝每台整段金額 × {l.qty || "待填"}台；計費期數只記錄租期，不會再乘一次。超印費依原規則另計。此價預設不參加整案優惠。金額待填時可先存本機草稿，填好再保存團隊。</p>
+                        </div>}
                         <div className="form-grid">
                           <Field label="項目名稱">
                             <input
@@ -604,7 +634,7 @@ export default function App() {
                               }
                             />
                           </Field>
-                          {p ? (
+                          {p && pricingMode(l) === "standard" ? (
                             <Field label="原價計費說明">
                               <output>
                                 {p.tier
@@ -614,7 +644,7 @@ export default function App() {
                                     (p.id === "laser-cm" ? "色" : p.unit)}
                               </output>
                             </Field>
-                          ) : (
+                          ) : !p && pricingMode(l) === "standard" ? (
                             <>
                               <Field label="計費單位">
                                 <select
@@ -650,7 +680,7 @@ export default function App() {
                                 />
                               </Field>
                             </>
-                          )}
+                          ) : null}
                           {p?.usage !== undefined && (
                             <Field label="每台整段租期預估印量（彩雷含黑白＋彩色）">
                               <input
@@ -665,8 +695,8 @@ export default function App() {
                             </Field>
                           )}
                         </div>
-                        {p && <p className="helper">{p.note}</p>}
-                        {p?.tier && Number(l.periods) >= 6 && (
+                        {p && pricingMode(l) === "standard" && <p className="helper">{p.note}</p>}
+                        {p?.tier && pricingMode(l) === "standard" && Number(l.periods) >= 6 && (
                           <p className="callout">
                             短租基本費已高於月租1,500元，可另選文書筆電月租比較；須確認適用期間與條件，不自動轉換。
                           </p>
@@ -682,7 +712,7 @@ export default function App() {
                           />
                         </Field>
                         <details className="extra">
-                          <summary>個別日期、人工調價與優惠範圍</summary>
+                          <summary>其他設定：個別日期與優惠範圍（選填）</summary>
                           <div className="form-grid">
                             <Field label="本項起租日期（空白沿用整案）">
                               <input
@@ -705,29 +735,6 @@ export default function App() {
                                 }
                                 onChange={(e) =>
                                   line(l.id, { end: e.target.value })
-                                }
-                              />
-                            </Field>
-                            <Field
-                              label="人工調整：每台整段基本費"
-                              hint="留空沿用計算，不包含超印；所有台數套用同一調整。"
-                            >
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={l.override}
-                                onChange={(e) =>
-                                  line(l.id, { override: e.target.value })
-                                }
-                              />
-                            </Field>
-                            <Field label="人工調價原因">
-                              <input
-                                value={l.overrideReason}
-                                maxLength={500}
-                                onChange={(e) =>
-                                  line(l.id, { overrideReason: e.target.value })
                                 }
                               />
                             </Field>
@@ -775,122 +782,65 @@ export default function App() {
                 <h2>收送、優惠及付款</h2>
               </div>
             </div>
-            <div className="form-grid">
-              {select("delivery", "交付方式", [
-                "待確認",
-                "客戶自取自還",
-                "專人送裝及回收",
-                "僅送達／回收另約",
-                "物流寄送來回",
-                "多地點／特殊交付",
-              ])}
-              {select("urgency", "時效需求（費用請另外加品項）", [
-                "正常預約",
-                "優先整備",
-                "當日急件",
-                "夜間／假日",
-                "交期待確認",
-              ])}
-              {input("address", "交付地址／地點")}
-              {input("validUntil", "報價有效至", "date")}
-              <Field label="設備優惠方式">
-                <select
-                  value={q.discount.type}
-                  onChange={(e) =>
-                    edit((v) => ({
-                      ...v,
-                      discount: {
-                        ...v.discount,
-                        type: e.target.value as "amount" | "percent",
-                        value: "0",
-                      },
-                    }))
-                  }
-                >
-                  <option value="amount">減免固定金額</option>
-                  <option value="percent">折讓百分比（填10＝減10%）</option>
-                </select>
-              </Field>
-              <Field
-                label={
-                  q.discount.type === "percent"
-                    ? "折讓百分比（0～100）"
-                    : "減免金額"
-                }
-              >
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  max={q.discount.type === "percent" ? 100 : s.discountBase}
-                  value={q.discount.value}
-                  onChange={(e) =>
-                    edit((v) => ({
-                      ...v,
-                      discount: { ...v.discount, value: e.target.value },
-                    }))
-                  }
-                />
-              </Field>
+            <div className="terms-block">
+              <h3>1. 收送安排</h3>
+              <p className="helper">客戶自取自還不收收送費；送裝與回收另列，不含在租金中。選交付方式不會自動加費。</p>
+              <div className="form-grid">
+                {select("delivery", "交付方式", ["待確認", "客戶自取自還", "專人送裝及回收", "僅送達／回收另約", "物流寄送來回", "多地點／特殊交付"])}
+                {select("urgency", "時效需求（急件費另列）", ["正常預約", "優先整備", "當日急件", "夜間／假日", "交期待確認"])}
+                {i.delivery !== "客戶自取自還" && input("address", "交付地址／地點")}
+              </div>
+              {i.delivery !== "客戶自取自還" && <div className="toolbar delivery-shortcuts">
+                <button onClick={() => addDelivery("送裝與網路驅動設定", "800")}>＋ 送裝費（公版800元／次）</button>
+                <button onClick={() => addDelivery("到期回收", "")}>＋ 回收費（自行填價）</button>
+              </div>}
+              {q.lines.filter(l => l.kind === "delivery").map(l => <article key={l.id} className="delivery-row">
+                <div className="line-heading"><h4>{l.name}</h4><button className="quiet" onClick={() => { setUndo(l); edit(v => ({ ...v, lines: v.lines.filter(row => row.id !== l.id) })); }}>移除此收送項目</button></div>
+                <div className="form-grid">
+                  <Field label="收送項目名稱"><input value={l.name} maxLength={200} onChange={e => line(l.id, { name: e.target.value })} /></Field>
+                  <Field label={l.override ? "每份整段費用（原自訂價）" : "每次收送費（可自行改價）"} hint="空白是待估；確認免收才填0。"><input type="number" min="0" max="10000000" step="0.01" value={l.override ? (l.override === "待估" ? "" : l.override) : l.price} placeholder="請填金額" onChange={e => line(l.id, l.override ? { override: e.target.value || "待估" } : { price: e.target.value })} /></Field>
+                  <Field label="份數／數量"><input type="number" min="1" max="1000" step="1" value={l.qty} onChange={e => line(l.id, { qty: e.target.value })} /></Field>
+                  <Field label="計費次數"><input type="number" min="1" max="3650" step="1" value={l.periods} onChange={e => line(l.id, { periods: e.target.value })} /></Field>
+                  {l.override && <Field label="自訂費用說明"><input value={l.overrideReason} maxLength={500} onChange={e => line(l.id, { overrideReason: e.target.value })} /></Field>}
+                </div>
+                <Field label="收送範圍／設定內容"><textarea value={l.scope} maxLength={3000} placeholder="例如：同址送裝2台，不含回收；回收另列一項。" onChange={e => line(l.id, { scope: e.target.value })} /></Field>
+                <p className="price-formula">本項小計：{s.rows[q.lines.indexOf(l)].amount === null ? "待估／請修正" : money(s.rows[q.lines.indexOf(l)].amount!)}</p>
+                {!!s.rows[q.lines.indexOf(l)].errors.length && <p className="pending">{s.rows[q.lines.indexOf(l)].errors.join("；")}</p>}
+              </article>)}
+              {i.delivery === "客戶自取自還" && q.lines.some(l => l.kind === "delivery") && <p className="callout">目前仍有收送費品項，請核對是否為本案另約服務；不需要時按「移除此收送項目」，選自取不會刪除既有費用。</p>}
+              {!q.lines.some(l => l.kind === "delivery") && <p className="helper">目前未加收送費。</p>}
             </div>
-            <Field label="優惠原因（有優惠必填）">
-              <input
-                value={q.discount.reason}
-                maxLength={500}
-                placeholder="例如：同址整批交付／半年承租優惠，依核定條件"
-                onChange={(e) =>
-                  edit((v) => ({
-                    ...v,
-                    discount: { ...v.discount, reason: e.target.value },
-                  }))
-                }
-              />
-            </Field>
-            <p className="helper">
-              可優惠設備基本租金：{money(s.discountBase)}
-              。一次只套用一筆優惠；軟體、工程、收送、急件、碳粉及超印不參與。人工設備需明確勾選。
-            </p>
-            <div className="form-grid">
-              <Field label="稅額方式">
-                <select
-                  value={i.tax}
-                  onChange={(e) => iq("tax", e.target.value)}
-                >
-                  <option value="pending">待確認</option>
-                  <option value="included">報價已含稅，不另加</option>
-                  <option value="exclusive">未稅，另加5%</option>
-                </select>
-              </Field>
-              <Field label="押金方式">
-                <select
-                  value={i.depositMode}
-                  onChange={(e) => iq("depositMode", e.target.value)}
-                >
-                  <option value="pending">待確認</option>
-                  <option value="collect">另收押金</option>
-                  <option value="waive">本案免押金（填原因）</option>
-                </select>
-              </Field>
-              {i.depositMode === "collect" &&
-                input("deposit", "本案押金總額", "number")}
-              {input("depositReason", "押金說明／免收原因")}
+            <div className="terms-block deposit-block">
+              <h3>2. 押金（另外收取，不算租金）</h3>
+              <p className="helper">先選是否收押金，再填整張報價的押金總額。歸還後依設備狀況與約定辦理退還。</p>
+              <Field label="本案押金方式"><select value={i.depositMode} onChange={e => iq("depositMode", e.target.value)}><option value="pending">待確認（先詢價）</option><option value="collect">另收押金</option><option value="waive">免收押金</option></select></Field>
+              {i.depositMode === "collect" && <>
+                <div className="form-grid">{input("deposit", "整張報價押金總額（元）", "number", "例如：4000")}{input("depositReason", "押金補充說明（0元須填原因）")}</div>
+                <div className="deposit-reference"><span>公版設備押金參考：<strong>{money(s.suggestedDeposit)}</strong></span><button onClick={() => iq("deposit", String(s.suggestedDeposit))}>帶入參考總額</button></div>
+                <p className="helper">參考額已乘設備數量，尚未包含人工設備；請核對後調整，不會自動收取。</p>
+              </>}
+              {i.depositMode === "waive" && input("depositReason", "免押金原因（必填）", "text", "例如：長期往來客戶，依本次約定免押金")}
+              {i.depositMode === "pending" && <p className="helper">可以先保存詢價；確認報價前再補上押金安排。</p>}
             </div>
-            {i.depositMode === "collect" && (
-              <p className="helper">
-                原設備押金參考合計 {money(s.suggestedDeposit)}（不含人工設備）。
-                <button
-                  onClick={() => iq("deposit", String(s.suggestedDeposit))}
-                >
-                  帶入原設備押金參考
-                </button>
-                請核對後調整。
-              </p>
-            )}
-            {area(
-              "payment",
-              "付款安排／續租與提前歸還約定",
-              "例如：首次費用及押金交付前支付，後續按月；續租與提前歸還另約。",
-            )}
+            <details className="terms-block discount-block">
+              <summary><strong>3. 設備優惠（選用）</strong><span>{s.discount > 0 ? "目前減免 " + money(s.discount) : "目前不另優惠"}</span></summary>
+              <p className="helper">已談好客製價時，通常不必再填優惠。只折抵勾選設備的基本租金，不折收送、軟體、工程、急件、耗材及超印。</p>
+              <div className="form-grid">
+                <Field label="優惠方式"><select value={q.discount.type} onChange={e => edit(v => ({ ...v, discount: { ...v.discount, type: e.target.value as "amount" | "percent", value: "0" } }))}><option value="amount">減免固定金額</option><option value="percent">減免百分比（填10＝減10%）</option></select></Field>
+                <Field label={q.discount.type === "percent" ? "減免百分比（0～100）" : "整張單減免金額（元）"}><input type="number" min="0" step="0.01" max={q.discount.type === "percent" ? 100 : s.discountBase} value={q.discount.value} onChange={e => edit(v => ({ ...v, discount: { ...v.discount, value: e.target.value } }))} /></Field>
+              </div>
+              <Field label="優惠原因（有優惠必填）"><input value={q.discount.reason} maxLength={500} placeholder="例如：同址大量租借優惠" onChange={e => edit(v => ({ ...v, discount: { ...v.discount, reason: e.target.value } }))} /></Field>
+              <p className="helper">可優惠的設備基本租金合計：{money(s.discountBase)}。一次只套用一筆優惠；客製價預設不參加，若另有約定可到該品項「其他設定」勾選。</p>
+              {Number(q.discount.value) !== 0 && <button onClick={() => edit(v => ({ ...v, discount: { type: "amount", value: "0", reason: "" } }))}>取消本次優惠</button>}
+            </details>
+            <div className="terms-block">
+              <h3>4. 付款與報價期限</h3>
+              <div className="form-grid">
+                <Field label="稅額方式"><select value={i.tax} onChange={e => iq("tax", e.target.value)}><option value="pending">待確認</option><option value="included">報價已含稅，不另加</option><option value="exclusive">未稅，另加5%</option></select></Field>
+                {input("validUntil", "報價有效至", "date")}
+              </div>
+              {area("payment", "付款安排／續租與提前歸還約定", "例如：交付前付清租金及押金；續租與提前歸還另約。")}
+            </div>
           </section>
           <section className="card">
             <div className="section-title">
