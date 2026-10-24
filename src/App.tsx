@@ -12,6 +12,7 @@ import {
   BookOpen,
   Printer,
   RotateCcw,
+  Truck,
 } from "lucide-react";
 import {
   PLANS,
@@ -100,6 +101,9 @@ function PricingChoice({ value, onChange }: { value: "standard" | "custom"; onCh
 }
 function CustomerDocument({ text }: { text: string }) {
   return <div className="customer-document" dangerouslySetInnerHTML={{ __html: customerDocumentHtml(text) }} />;
+}
+function MoneyInput({ prefix = "currency", ...props }: React.InputHTMLAttributes<HTMLInputElement> & { prefix?: "currency" | "percent" | "delivery" }) {
+  return <span className="money-input"><span className="money-prefix" aria-hidden="true">{prefix === "delivery" ? <Truck size={20} /> : prefix === "percent" ? "%" : "NT$"}</span><input type="number" inputMode="decimal" {...props} /></span>;
 }
 function download(name: string, text: string, type: string) {
   const u = URL.createObjectURL(new Blob([text], { type }));
@@ -244,9 +248,11 @@ export default function App() {
     label: string,
     type = "text",
     placeholder = "",
-  ) => (
+  ) => {
+    const Control = key === "deposit" ? MoneyInput : "input";
+    return (
     <Field label={label}>
-      <input
+      <Control
         type={type}
         value={String(i[key])}
         maxLength={500}
@@ -259,7 +265,7 @@ export default function App() {
         onChange={(e) => iq(key, e.target.value)}
       />
     </Field>
-  );
+  );};
   const area = (key: keyof Inquiry, label: string, placeholder = "") => (
     <Field label={label}>
       <textarea
@@ -290,7 +296,7 @@ export default function App() {
           <div>
             <p className="eyebrow">永捷系統科技 · 內部報價工具</p>
             <h1>
-              租賃詢價與多品項報價 <span>v2.1.1</span>
+              租賃詢價與多品項報價 <span>v2.1.2</span>
             </h1>
             <p>先問需求，再逐項估價；特殊服務保留人工確認。</p>
           </div>
@@ -594,7 +600,7 @@ export default function App() {
                           <h4>客製化金額</h4>
                           <div className="form-grid">
                             <Field label={l.kind === "equipment" ? "每台整段基本租金（不含超印）" : "每項整段服務費"} hint="填單台整段金額，不要再乘台數或天數。確認免費才填0。">
-                              <input type="number" min="0" max="10000000" step="0.01" value={l.override === "待估" ? "" : l.override} placeholder="例如：每台租15天共1,800元，填1800" onChange={e => line(l.id, { override: e.target.value || "待估" })} />
+                              <MoneyInput min="0" max="10000000" step="0.01" value={l.override === "待估" ? "" : l.override} placeholder="例如：每台租15天共1,800元，填1800" onChange={e => line(l.id, { override: e.target.value || "待估" })} />
                             </Field>
                             <Field label="客製化報價說明（必填）"><input value={l.overrideReason} maxLength={500} placeholder="例如：本次15天專案價" onChange={e => line(l.id, { overrideReason: e.target.value })} /></Field>
                           </div>
@@ -673,7 +679,7 @@ export default function App() {
                                 </select>
                               </Field>
                               <Field label="人工單價（未知留空）">
-                                <input
+                                <MoneyInput
                                   type="number"
                                   min="0"
                                   step="0.01"
@@ -804,7 +810,7 @@ export default function App() {
                 <div className="line-heading"><h4>{l.name}</h4><button className="quiet" onClick={() => { setUndo(l); edit(v => ({ ...v, lines: v.lines.filter(row => row.id !== l.id) })); }}>移除此收送項目</button></div>
                 <div className="form-grid">
                   <Field label="收送項目名稱"><input value={l.name} maxLength={200} onChange={e => line(l.id, { name: e.target.value })} /></Field>
-                  <Field label={l.override ? "每份整段費用（原自訂價）" : "每次收送費（可自行改價）"} hint="空白是待估；確認免收才填0。"><input type="number" min="0" max="10000000" step="0.01" value={l.override ? (l.override === "待估" ? "" : l.override) : l.price} placeholder="請填金額" onChange={e => line(l.id, l.override ? { override: e.target.value || "待估" } : { price: e.target.value })} /></Field>
+                  <Field label={l.override ? "每份整段費用（原自訂價）" : "每次收送費（可自行改價）"} hint="空白是待估；確認免收才填0。"><MoneyInput prefix="delivery" min="0" max="10000000" step="0.01" value={l.override ? (l.override === "待估" ? "" : l.override) : l.price} placeholder="請填金額" onChange={e => line(l.id, l.override ? { override: e.target.value || "待估" } : { price: e.target.value })} /></Field>
                   <Field label="份數／數量"><input type="number" min="1" max="1000" step="1" value={l.qty} onChange={e => line(l.id, { qty: e.target.value })} /></Field>
                   <Field label="計費次數"><input type="number" min="1" max="3650" step="1" value={l.periods} onChange={e => line(l.id, { periods: e.target.value })} /></Field>
                   {l.override && <Field label="自訂費用說明"><input value={l.overrideReason} maxLength={500} onChange={e => line(l.id, { overrideReason: e.target.value })} /></Field>}
@@ -833,7 +839,7 @@ export default function App() {
               <p className="helper">已談好客製價時，通常不必再填優惠。只折抵勾選設備的基本租金，不折收送、軟體、工程、急件、耗材及超印。</p>
               <div className="form-grid">
                 <Field label="優惠方式"><select value={q.discount.type} onChange={e => edit(v => ({ ...v, discount: { ...v.discount, type: e.target.value as "amount" | "percent", value: "0" } }))}><option value="amount">減免固定金額</option><option value="percent">減免百分比（填10＝減10%）</option></select></Field>
-                <Field label={q.discount.type === "percent" ? "減免百分比（0～100）" : "整張單減免金額（元）"}><input type="number" min="0" step="0.01" max={q.discount.type === "percent" ? 100 : s.discountBase} value={q.discount.value} onChange={e => edit(v => ({ ...v, discount: { ...v.discount, value: e.target.value } }))} /></Field>
+                <Field label={q.discount.type === "percent" ? "減免百分比（0～100）" : "整張單減免金額（元）"}><MoneyInput prefix={q.discount.type === "percent" ? "percent" : "currency"} min="0" step="0.01" max={q.discount.type === "percent" ? 100 : s.discountBase} value={q.discount.value} onChange={e => edit(v => ({ ...v, discount: { ...v.discount, value: e.target.value } }))} /></Field>
               </div>
               <Field label="優惠原因（有優惠必填）"><input value={q.discount.reason} maxLength={500} placeholder="例如：同址大量租借優惠" onChange={e => edit(v => ({ ...v, discount: { ...v.discount, reason: e.target.value } }))} /></Field>
               <p className="helper">可優惠的設備基本租金合計：{money(s.discountBase)}。一次只套用一筆優惠；客製價預設不參加，若另有約定可到該品項「其他設定」勾選。</p>

@@ -1,5 +1,19 @@
 @import "tailwindcss";
 @media screen {
+ .workspace input:not([type=checkbox]):not([type=radio]):not([type=file]),.workspace select {min-height:58px;box-sizing:border-box;}
+ .workspace .money-input {display:block;position:relative;width:100%;min-width:0;}
+ .workspace .money-prefix {position:absolute;left:1px;top:1px;bottom:1px;width:54px;display:flex;align-items:center;justify-content:center;border-right:1px solid #d5dfeb;color:#425773;font-size:16px;font-weight:600;line-height:1;pointer-events:none;}
+ .workspace .money-prefix svg {display:block;width:20px;height:20px;flex:none;}
+ .workspace .money-input>input {width:100%;min-width:0;height:58px;min-height:58px;padding:12px 14px 12px 70px!important;box-sizing:border-box;line-height:1.6;text-align:left;}
+ .delivery-row .line-heading {gap:12px;flex-wrap:wrap;}
+ .deposit-reference>* {min-width:0;overflow-wrap:anywhere;}
+}
+@media screen and (max-width:600px) {
+ .workspace .delivery-shortcuts {display:grid!important;grid-template-columns:1fr!important;gap:10px;}
+ .workspace .delivery-shortcuts button {width:100%;}
+ .workspace .deposit-reference {display:grid;grid-template-columns:1fr;}
+}
+@media screen {
  .summary-panel .customer-document{padding:16px 4px;font-size:17px;}
  .summary-panel .quote-document-header h2{font-size:23px!important;}
  .summary-panel .quote-document-meta{display:block;}

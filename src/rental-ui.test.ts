@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import vm from 'node:vm';
 import { transformSync } from 'esbuild';
 import React from 'react';
+import * as rentalIcons from 'lucide-react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import * as core from './quote-core';
 import * as customerDocument from './customer-document';
@@ -13,10 +14,10 @@ function harness(){
  let cursor=0,tree:any;const hooks:any[]=[],clipboard:string[]=[],saved=new Map<string,string>();let printed=0;
  const TeamStub=()=>null;
  const fakeReact={...React,lazy:()=>TeamStub,useState(initial:any){const index=cursor++;if(!(index in hooks))hooks[index]=typeof initial==='function'?initial():initial;return [hooks[index],(v:any)=>{hooks[index]=typeof v==='function'?v(hooks[index]):v;}];},useRef(initial:any){const index=cursor++;return hooks[index]??={current:initial};},useCallback(fn:any){return fn;}};
- const context:any={module:{exports:{}},console,crypto:globalThis.crypto,structuredClone,setTimeout,clearTimeout,localStorage:{setItem:(k:string,v:string)=>saved.set(k,v),getItem:(k:string)=>saved.get(k)??null},navigator:{clipboard:{writeText:async(t:string)=>clipboard.push(t)}},window:{print:()=>printed++},require:(name:string)=>name==='react'?fakeReact:name==='./quote-core'?core:name==='./customer-document'?customerDocument:new Proxy({},{get:()=>()=>null})};context.exports=context.module.exports;
+ const context:any={module:{exports:{}},console,crypto:globalThis.crypto,structuredClone,setTimeout,clearTimeout,localStorage:{setItem:(k:string,v:string)=>saved.set(k,v),getItem:(k:string)=>saved.get(k)??null},navigator:{clipboard:{writeText:async(t:string)=>clipboard.push(t)}},window:{print:()=>printed++},require:(name:string)=>name==='react'?fakeReact:name==='./quote-core'?core:name==='./customer-document'?customerDocument:name==='lucide-react'?rentalIcons:new Proxy({},{get:()=>()=>null})};context.exports=context.module.exports;
  vm.runInNewContext(compiled,context);const App=context.module.exports.default;
  function render(){cursor=0;tree=App();return tree;}
- const walk=(node:any):any[]=>!node||typeof node!=='object'?[]:Array.isArray(node)?node.flatMap(walk):[node,...walk(typeof node.type==='function'&&['Field','Check','PricingChoice'].includes(node.type.name)?node.type(node.props):node.props?.children)];
+ const walk=(node:any):any[]=>!node||typeof node!=='object'?[]:Array.isArray(node)?node.flatMap(walk):[node,...walk(typeof node.type==='function'&&['Field','Check','PricingChoice','MoneyInput'].includes(node.type.name)?node.type(node.props):node.props?.children)];
  const text=(node:any):string=>node==null?'':Array.isArray(node)?node.map(text).join(''):typeof node==='object'?text(node.props?.children):String(node);
  const nodes=(scope=tree)=>walk(scope);
  const click=(label:string,scope=tree)=>{const el=nodes(scope).find(n=>n.type==='button'&&text(n).startsWith(label));assert.ok(el,'button '+label);el.props.onClick();render();};
