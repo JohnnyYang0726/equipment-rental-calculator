@@ -1,5 +1,6 @@
 import type { Quote } from "./quote-core";
 import { quoteText, calculateQuote } from "./quote-core";
+import { customerDocumentHtml, CUSTOMER_DOCUMENT_CSS } from "./customer-document";
 export function quoteFingerprint(quote: Quote) {
   const sort = (value: unknown): unknown =>
     Array.isArray(value)
@@ -46,11 +47,5 @@ export function officialText(document: RentalDocument) {
  return quoteText(document.snapshot.quote,{totals:{...document.snapshot.totals,ready:true}});
 }
 export function officialHtml(text: string) {
-  const escaped = text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-  return `<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>永捷租賃正式報價</title><style>body{font-family:system-ui,"Microsoft JhengHei",sans-serif;max-width:850px;margin:30px auto;padding:20px;color:#1e293b}pre{font:inherit;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8}button{padding:12px 20px}@media print{button{display:none}body{padding:0;margin:0}@page{margin:15mm}}</style><button onclick="window.print()">列印正式報價</button><pre>${escaped}</pre></html>`;
+  return `<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>永捷租賃報價</title><style>${CUSTOMER_DOCUMENT_CSS}body{max-width:850px;margin:30px auto;padding:24px;background:white}button{padding:12px 20px;margin-bottom:20px;font:inherit}@media print{button{display:none}body{padding:0;margin:0}@page{size:A4;margin:15mm}}</style><button onclick="window.print()">列印客戶報價</button><main class="customer-document">${customerDocumentHtml(text)}</main></html>`;
 }

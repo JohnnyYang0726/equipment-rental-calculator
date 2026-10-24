@@ -248,7 +248,7 @@ test("unknown line never turns partial total into confirmed quotation", () => {
   assert.equal(s.pending, 1);
   assert.equal(s.subtotal, 600);
   assert.equal(s.ready, false);
-  assert.match(quoteText(q), /非完整確定報價/);
+  assert.match(quoteText(q), /另有1項待估，未包含於合計/);
 });
 test("confirmed quote requires actual complete data, not just final checkbox", () => {
   const q = full();
@@ -309,7 +309,7 @@ test("saved draft roundtrip retains prices and objective readiness without super
   assert.equal(loaded.inquiry.reviewed, false);
   assert.deepEqual(loaded.lines, q.lines);
   assert.match(quoteText(loaded), /包含維修及耗材/);
-  assert.match(quoteText(loaded), /送裝／回收另計/);
+  assert.doesNotMatch(quoteText(loaded), /尚有待確認項目|不要重複加價/);
   assert.equal(calculateQuote(loaded).ready, true);
 });
 test("malformed backups and duplicate item ids rejected without mutating current data", () => {
@@ -332,6 +332,23 @@ test("summary carries known/pending totals, service scope, periods, discount and
   assert.match(t, /報價草稿（資料已齊，待主管核准）/);
 });
 
+test("legacy screenshot quotation exports clean equipment and both transport services without contradictory defaults", () => {
+ const q = newQuote();
+ const pc = makeLine("equipment", "pc-screen");
+ Object.assign(pc, { override:"1500", overrideReason:"專案", scope:"已含一台螢幕，不要重複加價。" });
+ const send = makeLine("delivery");Object.assign(send,{name:"送裝與網路驅動設定",price:"600",scope:"送裝與網路驅動設定，請確認涵蓋地址與設定台數；不含回收。"});
+ const back = makeLine("delivery");Object.assign(back,{name:"到期回收",price:"600",scope:"到期回收費另計，請確認回收地址、台數與時間。"});
+ q.lines = [pc,send,back];Object.assign(q.inquiry,{customer:"王先生",start:"2026-10-30",end:"2026-10-31",tax:"included",depositMode:"collect",deposit:"4000",delivery:"專人送裝及回收",address:"高雄市",validUntil:"2026-10-26"});
+ const original=JSON.stringify(q), text=quoteText(q);
+ assert.match(text,/報價合計：NT\$ 2,700（含稅）/);assert.match(text,/押金另計：NT\$ 4,000/);
+ assert.match(text,/送裝與網路驅動設定/);assert.match(text,/到期回收/);
+ assert.doesNotMatch(text,/不要重複加價|已含一台螢幕|請確認|不含回收|回收另計|尚有待確認項目|非完整確定報價|付款：待確認/);
+ assert.equal(JSON.stringify(q),original); // Rendering must not mutate saved business data.
+ assert.equal(calculateQuote(q).ready,false); // Missing fields still appear in the internal checklist.
+ pc.scope="客戶自備資料；交付前完成軟體測試。";
+ assert.match(quoteText(q),/客戶自備資料；交付前完成軟體測試。/);
+});
+
 test("customer summary shows quoted override without internal pricing or approval reasons", () => {
   const q = full();
   q.lines = [makeLine("equipment", "pc-day")];
@@ -341,7 +358,7 @@ test("customer summary shows quoted override without internal pricing or approva
   });
   q.discount = { type: "amount", value: "100", reason: "內部議價底線" };
   const t = quoteText(q);
-  assert.match(t, /全租期費用：NT\$ 500/);
+  assert.match(t, /報價合計：NT\$ 500/);
   assert.match(t, /押金另計：NT\$ 4,000/);
   assert.ok(!t.includes("原單價"));
   assert.ok(!t.includes("內部整備成本"));
@@ -375,7 +392,7 @@ test("customer summary omits zero discount and empty optional sections", () => {
   ])
     assert.ok(!t.includes(text), text);
   assert.match(t, /包含維修及耗材/);
-  assert.match(t, /送裝／回收另計/);
+  assert.doesNotMatch(t, /尚有待確認項目|不要重複加價/);
   assert.ok(t.startsWith("【永捷租賃報價】\n"));
   assert.doesNotMatch(t, /草稿/);
 });
@@ -387,8 +404,8 @@ test("customer summary retains pending amounts and explicitly marks unknown tax 
   assert.match(t, /待估/);
   assert.match(t, /另有1項待估，未包含於合計/);
   assert.match(t, /稅額待確認/);
-  assert.match(t, /押金另計：待確認/);
-  assert.match(t, /非完整確定報價/);
+  assert.match(t, /押金另計：另議/);
+  assert.doesNotMatch(t, /尚有待確認項目|非完整確定報價/);
   assert.doesNotMatch(t, /草稿/);
 });
 
@@ -397,7 +414,7 @@ test("customer quotation orders sections and preserves printing allowances and m
  const q=newQuote();q.lines=[makeLine("equipment","laser-bw")];
  const t=quoteText(q);
  assert.ok(t.indexOf("【設備與服務】")<t.indexOf("【費用合計】"));
- assert.ok(t.indexOf("【費用合計】")<t.indexOf("【交付與必要條件】"));
- assert.match(t,/每台含50張，超印每張1元/);assert.equal(t.split("每台含50張").length-1,1);
- assert.match(t,/付款：待確認/);assert.match(t,/交付：待確認/);
+ assert.ok(t.indexOf("【費用合計】")<t.indexOf("【交付與約定】"));
+ assert.match(t,/每台含50張；超印每張NT\$ 1/);assert.equal(t.split("每台含50張").length-1,1);
+ assert.doesNotMatch(t,/付款：待確認|交付：待確認/);
 });

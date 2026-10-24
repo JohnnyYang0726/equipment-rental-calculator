@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, useRef, useState, useCallback } from "react";
 const TeamWorkspace = lazy(() => import("./TeamWorkspace"));
+import { customerDocumentHtml, CUSTOMER_DOCUMENT_CSS } from "./customer-document";
 import {
   Calculator,
   Plus,
@@ -19,6 +20,7 @@ import {
   makeLine,
   pricingMode,
   changePricingMode,
+  customerLineScope,
   calculateQuote,
   quoteText,
   restoreQuote,
@@ -96,6 +98,9 @@ function PricingChoice({ value, onChange }: { value: "standard" | "custom"; onCh
     <button type="button" aria-pressed={value === "custom"} className={value === "custom" ? "selected" : ""} onClick={() => onChange("custom")}><strong>客製化報價</strong><span>自行填每台整段基本租金</span></button>
   </div>;
 }
+function CustomerDocument({ text }: { text: string }) {
+  return <div className="customer-document" dangerouslySetInnerHTML={{ __html: customerDocumentHtml(text) }} />;
+}
 function download(name: string, text: string, type: string) {
   const u = URL.createObjectURL(new Blob([text], { type }));
   const a = document.createElement("a");
@@ -110,7 +115,7 @@ const HELP = [
   "設備、軟體、網路、收送及急件分項列清楚。 先選「公版計價」或「客製化報價」，再選設備並加入。公版按原方案及期數計算；客製價填「每台整段基本租金」及報價說明，取代公版基本租金，仍乘台數，超印另計。切回公版會清除客製金額與說明。客製價預設不再疊加優惠。核對數量與計費期數。 半年填6個月、全年填12個月；日期記錄不會自動改計費期數。 特殊設備、軟體、網路工程與急件用人工報價。 已包含的螢幕、Office或工時不要再加一次。 有軟體時仍要確認授權來源、版本及安裝方式。 列印設備的額度與超印費依各品項約定，不是不限量承諾。",
   "保留必要條件，取消重複的內部確認勾選。 在STEP 03收送區按「送裝費」或「回收費」加入，可直接修改金額及範圍。送裝公版800元／次，回收無預設價；相同快捷項目不會重複加入。收送安排不會自動加費或刪除既有項目。確認送裝及回收費已分項加入。 優惠只作用在選定的設備基本租金，優惠金額與原因要核對。 押金獨立選「另收／免收／待確認」。另收時填整張報價的押金總額，可按「帶入參考總額」後調整；免收需填原因。押金不計入租金。設備優惠預設收起，需要時才展開；取消優惠可按「取消本次優惠」。確認稅額、付款安排及有效期限。 費用或條件未齊可保存詢價；確定報價需補齊必要欄位，不需主管核准。 保存報價不會保留庫存或自動安排出車。 本次只簡化流程，原價與押金參考未調整。",
   "同事都以最新保存版本接手，不再走核准流程。 按「團隊紀錄」，再按「保存到團隊」。 從共用清單搜尋客戶或單號，可載入修改。 第一次保存建立共用單號；修改後再保存，歷史版本會保留。 網路失敗時保留本機草稿；成功提示才代表共用保存完成。 不影響助理及已開通同等權限工程師正常估價。 只能看本人所屬團隊的資料，不會因取消核准就開放其他團隊。",
-  "報價條件要清楚，文字不必長。 先看客戶報價預覽，核對品項、數量、租期、金額、押金及交付約定。 本機按「複製客戶報價」或「列印客戶報價」。 共用清單的客戶版輸出會核對最新版本及必要條件。 客戶版不寫草稿，但有待估時會清楚標示，不能當確定價格。 JSON備份含內部資料，不是客戶報價。 費用、庫存與交期仍依雙方確認；保存不代表已履約。",
+  "報價條件要清楚，文字不必長。 「請確認」與待辦清單只在員工畫面顯示，不放入客戶文件；舊報價的系統預設備註也會整理。自行填寫的服務約定仍會保留，請只填適合交給客戶的內容。 客戶預覽與列印改用表格，複製及下載文字保留相同內容；未報價的費用仍標示待估，不能當作免費。 先看客戶報價預覽，核對品項、數量、租期、金額、押金及交付約定。 本機按「複製客戶報價」或「列印客戶報價」。 共用清單的客戶版輸出會核對最新版本及必要條件。 客戶版不寫草稿，但有待估時會清楚標示，不能當確定價格。 JSON備份含內部資料，不是客戶報價。 費用、庫存與交期仍依雙方確認；保存不代表已履約。",
   "主管寫一次，同事在三套頁面上方都能看到。 主管登入後，在頁面上方「公司公告」展開「主管：發布／管理公告」。 填標題與內容，按「發布公告」。只能填純文字，不需要排版。 三套程式約30秒內更新；一般同事只需閱讀，不必打卡。 要修改時選既有公告，改字後發布；不再適用時按下架，異動紀錄仍保留。 同一團隊三套共用公告，不必每套各發一次。 已發布的公告仍可顯示；沒有公告也不影響報價。"
 ];
 export default function App() {
@@ -186,7 +191,7 @@ export default function App() {
     if (q.lines.length >= 100) { setMessage("最多100項，請另開報價"); return; }
     if (q.lines.some(l => l.kind === "delivery" && l.name === name)) { setMessage("此收送項目已加入，請在下方直接修改，避免重複計費。"); return; }
     const item = makeLine("delivery");
-    Object.assign(item, { name, price, scope: name === "送裝與網路驅動設定" ? "送裝與網路驅動設定，請確認涵蓋地址與設定台數；不含回收。" : "到期回收費另計，請確認回收地址、台數與時間。" });
+    Object.assign(item, { name, price, scope: name === "送裝與網路驅動設定" ? "送裝與網路驅動設定。" : "租期屆滿後回收設備。" });
     edit(v => ({ ...v, lines: [...v.lines, item] }));
     setMessage("已加入「" + name + "」，請在收送區確認金額與範圍。");
   }
@@ -276,6 +281,7 @@ export default function App() {
   );
   return (
     <div className="app-shell">
+      <style>{CUSTOMER_DOCUMENT_CSS}</style>
       <header className="app-header">
         <div className="brand">
           <span className="brand-icon">
@@ -284,7 +290,7 @@ export default function App() {
           <div>
             <p className="eyebrow">永捷系統科技 · 內部報價工具</p>
             <h1>
-              租賃詢價與多品項報價 <span>v2.1.0</span>
+              租賃詢價與多品項報價 <span>v2.1.1</span>
             </h1>
             <p>先問需求，再逐項估價；特殊服務保留人工確認。</p>
           </div>
@@ -701,9 +707,9 @@ export default function App() {
                             短租基本費已高於月租1,500元，可另選文書筆電月租比較；須確認適用期間與條件，不自動轉換。
                           </p>
                         )}
-                        <Field label="本項範圍／規格／已含與另計">
+                        <Field label="提供客戶的規格／服務說明">
                           <textarea
-                            value={l.scope}
+                            value={l.scope.trim() ? customerLineScope(l) || (p ? "依所列設備方案提供。" : "") : ""}
                             maxLength={3000}
                             placeholder="例如：十台同址設定，不含新增配線；送裝與回收分別列項。"
                             onChange={(e) =>
@@ -803,7 +809,7 @@ export default function App() {
                   <Field label="計費次數"><input type="number" min="1" max="3650" step="1" value={l.periods} onChange={e => line(l.id, { periods: e.target.value })} /></Field>
                   {l.override && <Field label="自訂費用說明"><input value={l.overrideReason} maxLength={500} onChange={e => line(l.id, { overrideReason: e.target.value })} /></Field>}
                 </div>
-                <Field label="收送範圍／設定內容"><textarea value={l.scope} maxLength={3000} placeholder="例如：同址送裝2台，不含回收；回收另列一項。" onChange={e => line(l.id, { scope: e.target.value })} /></Field>
+                <Field label="收送範圍／設定內容"><textarea value={customerLineScope(l)} maxLength={3000} placeholder="例如：送裝2台至指定地點；租期屆滿後回收。" onChange={e => line(l.id, { scope: e.target.value })} /></Field>
                 <p className="price-formula">本項小計：{s.rows[q.lines.indexOf(l)].amount === null ? "待估／請修正" : money(s.rows[q.lines.indexOf(l)].amount!)}</p>
                 {!!s.rows[q.lines.indexOf(l)].errors.length && <p className="pending">{s.rows[q.lines.indexOf(l)].errors.join("；")}</p>}
               </article>)}
@@ -982,7 +988,7 @@ export default function App() {
             <details className="text-preview customer-preview" open>
               <summary>客戶報價預覽</summary>
               <p className="helper">以下與複製、下載文字及列印內容相同。交付前請核對品項、租期、費用與必要條件。</p>
-              <pre>{text}</pre>
+                  <CustomerDocument text={text} />
             </details>
             <button className="primary full" onClick={copy}>
               <Copy size={17} />
@@ -1006,8 +1012,7 @@ export default function App() {
         </aside>
       </div>
       <section className="print-only">
-        <h1>永捷租賃報價</h1>
-        <pre>{text}</pre>
+        <CustomerDocument text={text} />
       </section>
       </>}
       <dialog

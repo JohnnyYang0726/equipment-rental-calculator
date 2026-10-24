@@ -1,4 +1,16 @@
 @import "tailwindcss";
+@media screen {
+ .summary-panel .customer-document{padding:16px 4px;font-size:17px;}
+ .summary-panel .quote-document-header h2{font-size:23px!important;}
+ .summary-panel .quote-document-meta{display:block;}
+ .summary-panel .customer-document table,.summary-panel .customer-document tbody,.summary-panel .customer-document tr,.summary-panel .customer-document td{display:block;width:100%;}
+ .summary-panel .customer-document thead{display:none;}
+ .summary-panel .customer-document tr{border-bottom:1px solid #c4d3e5;padding:12px 0;}
+ .summary-panel .customer-document td{border:0;padding:5px 0;}
+ .summary-panel .customer-document td[data-label]::before{content:attr(data-label)"：";font-weight:400;}
+ .summary-panel .quote-item-amount{text-align:left;}
+ .summary-panel .customer-document .quote-grand-total{font-size:21px!important;}
+}
 .pricing-choice {display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0;}
 .pricing-choice button {display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:16px;border:2px solid #b7c8df;border-radius:14px;background:#fff;color:#17304d;}
 .pricing-choice button span {font-size:16px;line-height:1.6;}

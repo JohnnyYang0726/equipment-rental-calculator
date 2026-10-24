@@ -335,13 +335,48 @@ export function makeLine(kind: Kind, planId = ""): Line {
     unit: p?.unit || "次",
     price: "",
     pages: "0",
-    scope: p?.note || "",
+    scope: p ? customerPlanScope(p) || "依所列設備方案提供。" : "",
     discountable: !!p && !p.id.startsWith("laser-cm"),
     override: "",
     overrideReason: "",
     start: "",
     end: "",
   };
+}
+function customerPlanScope(p: Plan): string {
+  if (p.usage !== undefined) return ""; // Usage terms are listed once in the customer breakdown.
+  const scopes: Record<string, string> = {
+    "pc-day": "單主機，不含螢幕。",
+    "pc-office": "Office授權及安裝方式依雙方約定。",
+    "pc-month": "8代內CPU。",
+    "pc-graphic": "9代內CPU；繪圖軟體另計。",
+    "pc-custom": "9代內CPU、32GB記憶體及RTX獨立顯示卡。",
+    "ink-c": "列印用量依雙方約定。",
+    "ink-cm": "列印用量依雙方約定。",
+    "dot-310": "每台每日含100張；超量費用依約計算。",
+    "dot-690": "每台每日含100張；超量費用依約計算。",
+    "laser-cm": "碳粉採購借機方案；耗材品項及借用期間依本次約定。",
+  };
+  return scopes[p.id] || "";
+}
+export function customerLineScope(line: Line): string {
+  const scope = line.scope.trim(), p = PLANS.find(p => p.id === line.planId);
+  // Match only system-generated defaults. Employee-entered conditions remain intact.
+  if (p && [p.note, customerPlanScope(p), "依所列設備方案提供。",
+    p.tier ? "短租最多15天；基本租金依本次客製報價，不自動切換月租。" :
+    p.note.replace(/沿用每月[\d,]+元/g, "基本租金依本次客製報價").replace(/每台每色[\d,]+元/g, "基本費依本次客製報價")].includes(scope))
+    return customerPlanScope(p);
+  if (line.kind === "delivery") {
+    if (["送裝與網路驅動設定，請確認涵蓋地址與設定台數；不含回收。", "原800元／次，請確認涵蓋地址與設定台數；不含回收。", "原800元／次運送與網路驅動設定；請註明本次涵蓋地點與設定台數，回收另計。"].includes(scope)) return line.name.includes("網路驅動設定") ? "" : "送裝與網路驅動設定。";
+    if (scope === "到期回收費另計，請確認回收地址、台數與時間。") return "租期屆滿後回收設備。";
+  }
+  if (scope === line.name + "。") return "";
+  return scope;
+}
+function customerLineName(line: Line): string {
+  if (line.kind === "delivery" && line.name === "原專人運送與網路驅動設定（800元／次）") return "送裝與網路驅動設定";
+  if (line.planId === "pc-office" && line.name === PLANS.find(p => p.id === line.planId)?.name) return "文書桌機＋螢幕＋Office 365";
+  return line.name || "未報價品項";
 }
 function numeric(value: string, max: number, integer = false): number | null {
   if (typeof value !== "string" || !/^\d+(?:\.\d{1,2})?$/.test(value.trim()))
@@ -569,16 +604,16 @@ export function quoteText(
     "單號：" +
       q.id +
       (options.approval ? "／第" + options.approval.revision + "版" : ""),
-    "客戶：" + (i.customer || "待填"),
-    "租期：" + (i.start || "待確認") + " ～ " + (i.end || "待確認"),
+    ...(i.customer.trim() ? ["客戶：" + i.customer] : []),
+    ...(i.start && i.end ? ["租期：" + i.start + " ～ " + i.end] : []),
     "",
     "【設備與服務】",
     ...q.lines.flatMap((l, n) => {
       const r = s.rows[n],
         p = PLANS.find((p) => p.id === l.planId);
-      const scope = l.scope.trim().replace(/^原方案[；：]?\s*/, "");
+      const scope = customerLineScope(l);
       return [
-        n + 1 + ". " + (l.name || "待確認品項"),
+        n + 1 + ". " + customerLineName(l),
         "   " +
           l.qty +
           (l.kind === "equipment" ? "台" : "項") +
@@ -589,7 +624,7 @@ export function quoteText(
           (r.amount === null ? "待估" : money(r.amount)),
         ...(scope ? ["   " + scope] : []),
         ...(p?.usage !== undefined
-          ? ["   " + (scope === p.note ? "" : "整段租期每台含" + (p.included || 0) + "張；" + (p.id.startsWith("laser-c") ? "黑白及彩色" : "") + "超印每張" + money(p.usage) + "；") + "每台預估" + l.pages + "張，超印費" + money(r.usage) + (scope !== p.note && p.id.startsWith("ink-") ? "（每台無條件捨去至整元）" : "")]
+          ? ["   整段租期每台含" + (p.included || 0) + "張；" + (p.id.startsWith("laser-c") ? "黑白及彩色" : "") + "超印每張" + money(p.usage) + "。", "   每台預估" + l.pages + "張，超印費" + money(r.usage) + (p.id.startsWith("ink-") ? "（每台無條件捨去至整元）" : "")]
           : []),
         ...(l.start || l.end
           ? ["   期間：" + (l.start || i.start) + " ～ " + (l.end || i.end)]
@@ -605,7 +640,7 @@ export function quoteText(
         ]
       : []),
     ...(i.tax === "exclusive" ? ["稅額：" + money(s.tax)] : []),
-    (s.pending ? "目前已估合計" : "全租期費用") +
+    (s.pending ? "已報價項目合計" : "報價合計") +
       "：" +
       money(s.total) +
       "（" +
@@ -614,14 +649,14 @@ export function quoteText(
     ...(s.pending ? ["另有" + s.pending + "項待估，未包含於合計。"] : []),
     "押金另計：" +
       (s.deposit === null
-        ? "待確認"
+        ? "另議"
         : s.deposit === 0
           ? "免收"
           : money(s.deposit)),
-    "付款：" + (i.payment.trim() || "待確認"),
+    ...(i.payment.trim() ? ["付款：" + i.payment.trim()] : []),
     "",
-    "【交付與必要條件】",
-    "交付：" + i.delivery,
+    "【交付與約定】",
+    ...(i.delivery !== "待確認" ? ["交付：" + i.delivery] : []),
     ...(i.address.trim()
       ? ["地點：" + i.address + (i.access ? "／" + i.access : "")]
       : []),
@@ -629,22 +664,19 @@ export function quoteText(
     ...(!["正常預約", "交期待確認"].includes(i.urgency)
       ? ["時效：" + i.urgency]
       : []),
-    "報價有效至：" + (i.validUntil || "待確認"),
+    ...(i.validUntil ? ["報價有效至：" + i.validUntil] : []),
     ...([i.software, i.network, i.notes].some((v) => v.trim())
       ? [
           "補充：" +
             [i.software, i.network, i.notes].filter((v) => v.trim()).join("；"),
         ]
       : []),
-    "包含維修及耗材；送裝／回收另計。" +
+    "租賃包含維修及耗材。" + (q.lines.some(l => l.kind === "delivery") ? "收送服務與費用依上述品項辦理。" : i.delivery === "客戶自取自還" ? "" : "送裝／回收另計。") +
       (q.lines.some(
         (l) => PLANS.find((p) => p.id === l.planId)?.usage !== undefined,
       )
         ? "列印額度及超印費依上述品項約定。"
         : ""),
-    ...(options.approval
-      ? ["庫存、交期與續租異動，依雙方確認。"]
-      : [s.ready ? "費用、庫存與交期依雙方確認內容辦理。" : "尚有待確認項目，非完整確定報價；費用、庫存與交期須先確認。"]),
   ].join("\n");
 }
 function detailedQuoteText(
