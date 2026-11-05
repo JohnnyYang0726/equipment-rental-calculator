@@ -31,6 +31,9 @@ import {
   type Line,
   type Kind,
 } from "./quote-core";
+import { appendTemplate, RENTAL_TEMPLATES, dateHints } from './quote-workflow.js';
+import { flushSync } from 'react-dom';
+import { quoteFingerprint } from './team-format';
 const STORAGE = "yj_rental_inquiry_v1";
 const MANUAL: Record<Kind, string[]> = {
   equipment: [
@@ -115,6 +118,27 @@ function download(name: string, text: string, type: string) {
 }
 const HELP = [
   {
+    "title": "新版：保存、輸出與提醒",
+    "lead": "先保存讓同事接手，再交付客戶；不用等主管核准。",
+    "steps": [
+      "三套使用相同名稱：「保存到團隊」、「複製客戶報價」、「列印客戶報價」。",
+      "填寫後先看客戶預覽，確認費用與約定，再按保存到團隊。看到成功、時間與版本，才表示已共用。",
+      "畫面顯示「有內容尚未保存」時，複製或列印會讓你選「保存到團隊並繼續」或「只輸出目前畫面」。",
+      "資料還未問齊可先保存；漏填會提醒。日期顛倒或無效金額須先修正，才可交付。",
+      "檢測、維修、租賃各自獨立，不帶入費用、不自動折抵，也不恢復主管核准。"
+    ],
+    "notes": [
+      [
+        "本機備援",
+        "本機草稿與本機報價只在這個瀏覽器，不等於團隊已保存。"
+      ],
+      [
+        "角色不變",
+        "助理與已開通助理同等權限的工程師可直接估價、共用、複製及列印；主管維護員工與公司價目，事後查閱。"
+      ]
+    ]
+  },
+  {
     "title": "登入與員工分工",
     "lead": "使用本人帳號，不必向主管索取每日核准。",
     "steps": [
@@ -141,7 +165,8 @@ const HELP = [
       "問設備、數量、用途、起租與歸還日期。",
       "問軟體、網路環境、現場安裝、收送及是否急件。",
       "填客戶、聯絡方式、報價人員與交付地點。",
-      "不知道的費用先留待估，確認免收才填0。"
+      "不知道的費用先留待估，確認免收才填0。",
+      "起租與歸還日期改動後，請核對各項計費期數，再按「已核對期數與金額」。日期不會自動改價；客製整段金額也保持原值。"
     ],
     "notes": [
       [
@@ -151,6 +176,10 @@ const HELP = [
       [
         "交期",
         "先確認庫存與人員，才向客戶承諾交付時間。"
+      ],
+      [
+        "日期提醒",
+        "歸還早於起租、租期超過3年須修正；有效期限已過或補登舊案則提醒確認，不會自行改日期。"
       ]
     ]
   },
@@ -220,23 +249,24 @@ const HELP = [
     ]
   },
   {
-    "title": "租賃：客戶表格、複製與列印",
-    "lead": "員工待辦留在內部，客戶只看服務、費用與約定。",
+    "title": "租賃：預覽、保存與輸出",
+    "lead": "三個主要動作放在報價區，不必來回找按鈕。",
     "steps": [
-      "展開「客戶報價預覽」，看設備與服務表格，核對台數、期間、金額及另列的押金。",
-      "公版預設的「不要重複加價、請確認」等提醒不帶給客戶。自行填寫的規格與服務約定仍會顯示，請用客戶看得懂的文字。",
-      "按「複製客戶報價」貼到LINE或郵件；需要文字檔按「下載文字」。內容與預覽相同，排版形式不同。",
-      "按「列印客戶報價」，核對表格再列印或另存PDF。共用清單下載的報價HTML開啟後也可列印。",
-      "客戶版不顯示草稿或整段內部待辦，但未報價品項仍標示待估，未列入合計；不能讓客戶以為是免費。"
+      "在「保存與交付」查看保存狀態；按「保存到團隊」後，等待版本及時間出現。",
+      "展開客戶報價預覽，核對品項、租期、公版／客製價格、送裝回收、租金與押金。",
+      "按「複製客戶報價」、「列印客戶報價」或下載文字。漏填與日期提示只留在內部。",
+      "未保存時選「保存到團隊並繼續」或「只輸出目前畫面」。保存失敗不會繼續輸出，原表單保留。",
+      "備註可選常用範本，會加入原文且可修改；確認適合本案，再交付客戶。",
+      "LINE貼上文字後再看一次；列印可選印表機或另存PDF。押金始終另列，不算入租金。"
     ],
     "notes": [
       [
-        "交付前核對",
-        "備註、收送範圍、付款及有效期限都要符合本案約定；修改後請保存並重新輸出最新版本。"
+        "保存不是預約或收款",
+        "團隊保存不會保留庫存、自動出車或收取押金。"
       ],
       [
-        "不要外傳",
-        "JSON備份含內部資料，不是客戶報價；內部成本及核對清單也不要直接截圖傳給客戶。"
+        "不隱藏必要條件",
+        "真正未估的費用仍標示待估，不能把部分金額當完整總價承諾。"
       ]
     ]
   },
@@ -283,9 +313,54 @@ export default function App() {
   const file = useRef<HTMLInputElement>(null),
     help = useRef<HTMLDialogElement>(null),
     helpBtn = useRef<HTMLButtonElement>(null);
+  const teamApi=useRef<{save:()=>Promise<any>}>(null);
+  const currentQuote=useRef(q);currentQuote.current=q;
+  const [savedInfo,setSavedInfo]=useState({key:'',label:'尚未保存到團隊'});
+  const [outputRequest,setOutputRequest]=useState<{mode:string,key:string}|null>(null);
+  const [workflowBusy,setWorkflowBusy]=useState(false);
+  const [datesChanged,setDatesChanged]=useState(false);
+  const [printText,setPrintText]=useState('');
   const i = q.inquiry;
   const s = calculateQuote(q);
   const text = quoteText(q);
+  const key=quoteFingerprint(q);
+  const dates=dateHints({...i,lines:q.lines});
+  const workflowWarnings=[...new Set([...s.checks,...dates.warnings,...(datesChanged?['租期日期已變更，請核對各項計費期數；系統未自動改價']:[])])];
+  const workflowErrors=[...dates.errors,...s.checks.filter(t=>/優惠數值格式|優惠不可超過|超過支援上限/.test(t))];
+  q.lines.forEach((l,n)=>{for(const [label,value] of [['數量',l.qty],['計費期數',l.periods],['單價',l.price],['客製金額',l.override],['印量',l.pages]]){
+    if(value && value!=='待估' && (!Number.isFinite(Number(value))||Number(value)<0))workflowErrors.push(`第${n+1}項${label}須為有效非負數字`);
+  }});
+  const isUnsaved=savedInfo.key!==key;
+  async function saveToTeam(){
+    if(workflowBusy)throw Error('正在處理，請稍候');
+    if(!teamApi.current)throw Error('團隊功能尚未就緒，請先登入');
+    if(workflowErrors.length)throw Error(workflowErrors.join('；'));
+    setWorkflowBusy(true);try{return await teamApi.current.save();}finally{setWorkflowBusy(false);}
+  }
+  function requestOutput(mode:string){
+    if(isUnsaved||workflowWarnings.length||workflowErrors.length){setOutputRequest({mode,key});setTimeout(()=>{if(typeof document!=='undefined')document.getElementById('rental-output-confirm')?.scrollIntoView({behavior:'smooth',block:'center'});},0);}
+    else void deliver(mode,q).catch(e=>setMessage(e.message));
+  }
+  async function deliver(mode:string,value:Quote){
+    const content=quoteText(value);
+    if(mode==='copy')await navigator.clipboard.writeText(content);
+    else if(mode==='text')download(`${value.id}.txt`,content,'text/plain;charset=utf-8');
+    else {flushSync(()=>setPrintText(content));window.print();}
+    setMessage(mode==='copy'?'✓ 已複製客戶報價。':mode==='text'?'已下載客戶報價文字。':'已開啟客戶報價列印。');
+  }
+  async function confirmOutput(withSave:boolean){
+    if(!outputRequest||workflowBusy)return;
+    if(outputRequest.key!==quoteFingerprint(currentQuote.current)){setOutputRequest(null);setMessage('確認期間內容已變更，請重新按輸出');return;}
+    if(workflowErrors.length)return;
+    const submitted=structuredClone(currentQuote.current);
+    try{
+      let value=submitted;
+      if(withSave){const document=await saveToTeam();value=document.snapshot.quote;}
+      const sameContent=(a:Quote,b:Quote)=>quoteFingerprint({...a,id:''})===quoteFingerprint({...b,id:''});
+      if(!sameContent(currentQuote.current,submitted))throw Error('保存期間內容已變更，請核對目前畫面後重新輸出');
+      await deliver(outputRequest.mode,value);setOutputRequest(null);
+    }catch(e){setMessage(e?.message || '輸出未完成，原輸入已保留。');}
+  }
   function edit(fn: (v: Quote) => Quote) {
     setQ((prev) => {
       const next = fn(prev);
@@ -293,6 +368,7 @@ export default function App() {
     });
   }
   function iq(key: keyof Inquiry, value: string | boolean) {
+    if(key==="start"||key==="end")setDatesChanged(true);
     if (key === "reviewed")
       setQ((prev) => ({
         ...prev,
@@ -348,7 +424,7 @@ export default function App() {
   }
   function replaceNow() {
     try {
-      if (replace === "new") setQ(newQuote());
+      if (replace === "new") {setQ(newQuote());setSavedInfo({key:'',label:'尚未保存到團隊'});setDatesChanged(false);setPrintText('');}
       else {
         const v = localStorage.getItem(STORAGE);
         if (!v) throw Error("沒有已保存的草稿");
@@ -363,14 +439,7 @@ export default function App() {
     }
     setReplace(null);
   }
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(text);
-      setMessage("✓ 已複製客戶報價；請記得保存到團隊供同事查詢。");
-    } catch {
-      setMessage("無法使用剪貼簿，請展開完整文字自行複製，或下載文字檔。");
-    }
-  }
+  function copy() { requestOutput('copy'); }
   function importText(value: string) {
     try {
       if (value.length > 2000000) throw Error("備份過大");
@@ -435,7 +504,7 @@ export default function App() {
           <div>
             <p className="eyebrow">永捷系統科技 · 內部報價工具</p>
             <h1>
-              租賃詢價與多品項報價 <span>v2.1.3</span>
+              租賃詢價與多品項報價 <span>v2.2.0</span>
             </h1>
             <p>先問需求，再逐項估價；特殊服務保留人工確認。</p>
           </div>
@@ -453,7 +522,7 @@ export default function App() {
           </button>
           <button disabled={!quoteAccess} onClick={save}>
             <Save size={17} />
-            保存草稿
+            本機備援草稿
           </button>
           <button disabled={!quoteAccess} onClick={() => setReplace("load")}>載入草稿</button>
           <button disabled={!quoteAccess} onClick={() => setReplace("new")}>另開新詢價</button>
@@ -502,10 +571,13 @@ export default function App() {
             open={teamOpen}
             onClose={() => setTeamOpen(false)}
             onAccess={onAccess}
+            onScopeChange={()=>setSavedInfo({key:'',label:'尚未保存到目前團隊'})}
+            onController={api=>{teamApi.current=api;}}
+            onSaved={document=>setSavedInfo({key:quoteFingerprint(document.snapshot.quote),label:`已保存到團隊 · 第${document.head.revision}版 · ${new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei'})} · ${document.snapshot.quote.inquiry.staff || '本次經辦'}`})}
             quote={q}
             resetKey={resetKey}
             onLoad={(loaded) => {
-              setQ(loaded);
+              setQ(loaded);setDatesChanged(false);setSavedInfo({key:quoteFingerprint(loaded),label:"已載入團隊保存版本"});
               setEditing("");
               setUndo(null);
               setPendingImport(null);
@@ -522,7 +594,7 @@ export default function App() {
               );
             }}
             onClear={() => {
-              setQ(newQuote());
+              setSavedInfo({key:"",label:"尚未保存到團隊"});setOutputRequest(null);setQ(newQuote());
               setEditing("");
               setResetKey((v) => v + 1);
             }}
@@ -557,6 +629,7 @@ export default function App() {
               {input("readyAt", "最晚送達／安裝完成時間", "datetime-local")}
               {input("start", "起租日期", "date")}
               {input("end", "歸還日期", "date")}
+              {datesChanged && <p className="helper" role="status">租期已變更，請核對各項計費期數；客製化整段金額不會自動更改。<button type="button" onClick={()=>setDatesChanged(false)}>已核對期數與金額</button></p>}
             </div>
             <p className="helper">
               日期記錄約定期間，不會自動更改費用。天數、月數需逐項確認；半年填6個月，全年填12個月，原月租不自動打折。最長3年。
@@ -575,7 +648,8 @@ export default function App() {
                   "是否已有網路？同時連線台數？需配線、Wi-Fi或上網線路？",
                 )}
                 {area("access", "樓層／電梯／進場限制")}
-                {area("notes", "其他需求與備註")}
+                <Field label="加入常用客戶備註（可修改）"><select value="" onChange={e=>{try{iq('notes',appendTemplate(i.notes,e.target.value,2000));}catch(error){setMessage(error.message);}}}><option value="">選擇範本，加入後請依本案修改</option>{RENTAL_TEMPLATES.map(t=><option key={t} value={t}>{t}</option>)}</select></Field>
+              {area("notes", "其他需求與備註")}
               </div>
             </details>
           </section>
@@ -1002,7 +1076,7 @@ export default function App() {
               </div>
             </div>
             <p className="helper">
-              先看客戶報價預覽，再核對費用、日期及交付約定。請按頁首「團隊紀錄」保存共用；保存到團隊後即可從團隊頁輸出客戶報價。修改後再保存，保留經辦與歷史版本。
+              先看客戶報價預覽，再核對費用、日期及交付約定。請在報價區按「保存到團隊」共用；複製與列印也在同一區操作。修改後再保存，保留經辦與歷史版本。
             </p>
             <Check
               label="如需配送，已分別確認送裝與回收費，並列入收送品項"
@@ -1079,6 +1153,15 @@ export default function App() {
               {s.ready ? "資料已齊／可交付" : "詢價草稿／待確認"}
             </span>
             <h2>{i.customer || "新租賃詢價"}</h2>
+            <section className="quote-workflow"><strong>保存與交付</strong><p role="status">{message}</p><p role="status">{savedInfo.label}{isUnsaved?' · 有內容尚未保存':''}</p>
+              <button disabled={workflowBusy} onClick={()=>saveToTeam().catch(e=>setMessage(e.message))}>保存到團隊</button>
+              {!!dates.errors.length && <p role="alert">{dates.errors.join('；')}</p>}
+              {!!dates.warnings.length && <p>{dates.warnings.join('；')}</p>}
+              {outputRequest && <div id="rental-output-confirm" role="alert"><strong>交付前再確認</strong><ul>{(workflowErrors.length?workflowErrors:workflowWarnings).map(t=><li key={t}>{t}</li>)}</ul>
+                {isUnsaved && <p>目前內容尚未保存到團隊，只輸出畫面不代表已共用。</p>}
+                <div className="workflow-actions">{!workflowErrors.length && <>{isUnsaved && <button disabled={workflowBusy} onClick={()=>confirmOutput(true)}>保存到團隊並繼續</button>}<button disabled={workflowBusy} onClick={()=>confirmOutput(false)}>{isUnsaved?'只輸出目前畫面':'確認後繼續'}</button></>}<button disabled={workflowBusy} onClick={()=>setOutputRequest(null)}>返回修改</button></div>
+              </div>}
+            </section>
             <p className="order-id">
               {q.id} · {q.lines.length}個品項
             </p>
@@ -1141,14 +1224,12 @@ export default function App() {
             </button>
             <div className="output-buttons">
               <button
-                onClick={() =>
-                  download(`${q.id}.txt`, text, "text/plain;charset=utf-8")
-                }
+                onClick={() => requestOutput('text')}
               >
                 <Download size={16} />
                 下載文字
               </button>
-              <button onClick={() => window.print()}>
+              <button onClick={() => requestOutput("print")}>
                 <Printer size={16} />
                 列印客戶報價
               </button>
@@ -1157,7 +1238,7 @@ export default function App() {
         </aside>
       </div>
       <section className="print-only">
-        <CustomerDocument text={text} />
+        <CustomerDocument text={printText || text} />
       </section>
       </>}
       <dialog
@@ -1171,9 +1252,9 @@ export default function App() {
           <button onClick={() => help.current?.close()}>返回報價</button>
         </header>
         <div className="manual-actions">
-          <p>三套程式共用完整手冊｜2026/10/24 第5版・22 頁。含新版金額欄位、租賃公版／客製化計價、收送、押金、客戶預覽與列印步驟。</p>
-          <a href="/manuals/employee-handbook-2026-10-24.pdf" target="_blank" rel="noopener noreferrer">開啟／列印員工手冊 PDF</a>
-          <a href="/manuals/employee-handbook-2026-10-24.pdf" download>下載員工手冊 PDF</a>
+          <p>三套程式共用完整手冊｜2026/11/05 第6版・22 頁。含統一保存與輸出、日期及漏填提醒、常用範本、公版／客製化、收送及押金。</p>
+          <a href="/manuals/employee-handbook-2026-11-05.pdf" target="_blank" rel="noopener noreferrer">開啟／列印員工手冊 PDF</a>
+          <a href="/manuals/employee-handbook-2026-11-05.pdf" download>下載員工手冊 PDF</a>
         </div>
         <p>先用已開通的員工帳號登入。三套程式共用帳號，各網站分別登入；忘記密碼在登入頁按「寄送重設信」，由本人開信設定。主管可在員工名單寄送重設信，也可停用帳號與調整角色。保固與驅動查詢免登入。</p><ol>
           {HELP.map((chapter) => (

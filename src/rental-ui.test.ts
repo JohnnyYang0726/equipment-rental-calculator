@@ -7,6 +7,8 @@ import React from 'react';
 import * as rentalIcons from 'lucide-react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import * as core from './quote-core';
+import * as workflow from './quote-workflow.js';
+import * as teamFormat from './team-format';
 import * as customerDocument from './customer-document';
 import { officialHtml } from './team-format';
 const compiled=transformSync(readFileSync(new URL('./App.tsx',import.meta.url),'utf8'),{loader:'tsx',format:'cjs',jsx:'transform'}).code;
@@ -14,7 +16,7 @@ function harness(){
  let cursor=0,tree:any;const hooks:any[]=[],clipboard:string[]=[],saved=new Map<string,string>();let printed=0;
  const TeamStub=()=>null;
  const fakeReact={...React,lazy:()=>TeamStub,useState(initial:any){const index=cursor++;if(!(index in hooks))hooks[index]=typeof initial==='function'?initial():initial;return [hooks[index],(v:any)=>{hooks[index]=typeof v==='function'?v(hooks[index]):v;}];},useRef(initial:any){const index=cursor++;return hooks[index]??={current:initial};},useCallback(fn:any){return fn;}};
- const context:any={module:{exports:{}},console,crypto:globalThis.crypto,structuredClone,setTimeout,clearTimeout,localStorage:{setItem:(k:string,v:string)=>saved.set(k,v),getItem:(k:string)=>saved.get(k)??null},navigator:{clipboard:{writeText:async(t:string)=>clipboard.push(t)}},window:{print:()=>printed++},require:(name:string)=>name==='react'?fakeReact:name==='./quote-core'?core:name==='./customer-document'?customerDocument:name==='lucide-react'?rentalIcons:new Proxy({},{get:()=>()=>null})};context.exports=context.module.exports;
+ const context:any={module:{exports:{}},console,crypto:globalThis.crypto,structuredClone,setTimeout,clearTimeout,localStorage:{setItem:(k:string,v:string)=>saved.set(k,v),getItem:(k:string)=>saved.get(k)??null},navigator:{clipboard:{writeText:async(t:string)=>clipboard.push(t)}},window:{print:()=>printed++},require:(name:string)=>name==='react'?fakeReact:name==='react-dom'?{flushSync:(fn:any)=>fn()}:name==='./quote-core'?core:name==='./quote-workflow.js'?workflow:name==='./team-format'?teamFormat:name==='./customer-document'?customerDocument:name==='lucide-react'?rentalIcons:new Proxy({},{get:()=>()=>null})};context.exports=context.module.exports;
  vm.runInNewContext(compiled,context);const App=context.module.exports.default;
  function render(){cursor=0;tree=App();return tree;}
  const walk=(node:any):any[]=>!node||typeof node!=='object'?[]:Array.isArray(node)?node.flatMap(walk):[node,...walk(typeof node.type==='function'&&['Field','Check','PricingChoice','MoneyInput'].includes(node.type.name)?node.type(node.props):node.props?.children)];
@@ -23,13 +25,13 @@ function harness(){
  const click=(label:string,scope=tree)=>{const el=nodes(scope).find(n=>n.type==='button'&&text(n).startsWith(label));assert.ok(el,'button '+label);el.props.onClick();render();};
  const field=(label:string,value:string,scope=tree)=>{const parent=nodes(scope).find(n=>n.type==='label'&&text(n).startsWith(label));assert.ok(parent,'field '+label);const input=nodes(parent).find(n=>['input','select','textarea'].includes(n.type));assert.ok(input,'control '+label);input.props.onChange({target:{value}});render();};
  render();nodes().find(n=>n.type===TeamStub).props.onAccess(true);render();
- return {render,nodes,text,click,field,clipboard,get printed(){return printed;},get q(){return hooks[0] as core.Quote;},card:()=>nodes().find(n=>n.type==='article'&&n.props.className==='line-card'),markup:()=>renderToStaticMarkup(tree)};
+ return {render,nodes,text,click,field,clipboard,async clickAsync(label:string){const el=nodes().find(n=>n.type==='button'&&text(n).startsWith(label));assert.ok(el,label);await el.props.onClick();render();},team:()=>nodes().find(n=>n.type===TeamStub).props,get printed(){return printed;},get q(){return hooks[0] as core.Quote;},card:()=>nodes().find(n=>n.type==='article'&&n.props.className==='line-card'),markup:()=>renderToStaticMarkup(tree)};
 }
 test('actual rental form selects one price, restores public price, and exports the displayed amount',async()=>{
  const h=harness();h.field('選公版設備方案','pc-screen');h.click('加入本張報價');h.field('數量（設備台數','3');h.field('計費期數','15');assert.equal(core.calculateQuote(h.q).subtotal,9000);
  h.click('客製化報價',h.card());assert.equal(core.calculateQuote(h.q).pending,1);assert.ok(!h.markup().includes('原價計費說明'));
  h.field('每台整段基本租金','1800');h.field('客製化報價說明','十五天方案');assert.equal(core.calculateQuote(h.q).subtotal,5400);assert.equal(core.calculateQuote(h.q).discountBase,0);
- h.click('複製客戶報價');await Promise.resolve();assert.match(h.clipboard[0],/NT\$ 5,400/);const preview=h.nodes().find(n=>n.type==='details'&&n.props.className.includes('customer-preview'));assert.equal(h.nodes(preview).find(n=>n.type?.name==='CustomerDocument').props.text,h.clipboard[0]);assert.equal(h.nodes(h.nodes().find(n=>n.type==='section'&&n.props.className==='print-only')).find(n=>n.type?.name==='CustomerDocument').props.text,h.clipboard[0]);h.click('列印客戶報價');assert.equal(h.printed,1);
+ h.click('複製客戶報價');h.click('只輸出目前畫面');await Promise.resolve();assert.match(h.clipboard[0],/NT\$ 5,400/);const preview=h.nodes().find(n=>n.type==='details'&&n.props.className.includes('customer-preview'));assert.equal(h.nodes(preview).find(n=>n.type?.name==='CustomerDocument').props.text,h.clipboard[0]);assert.equal(h.nodes(h.nodes().find(n=>n.type==='section'&&n.props.className==='print-only')).find(n=>n.type?.name==='CustomerDocument').props.text,h.clipboard[0]);h.click('列印客戶報價');h.click('只輸出目前畫面');assert.equal(h.printed,1);
  h.click('公版計價',h.card());assert.equal(h.q.lines[0].override,'');assert.equal(core.calculateQuote(h.q).subtotal,9000);assert.ok(!h.markup().includes('每台整段基本租金（不含超印）'));
 });
 test('delivery shortcuts do not duplicate charges and deposit does not change rental total',()=>{
@@ -49,4 +51,23 @@ test('new custom line starts pending, manual services remain manual, and layout 
   writeFileSync('.qa/customer-print.html',officialHtml(core.quoteText(demo)));
  }
  h.click('軟體／安裝');h.click('加入本張報價');assert.equal(h.q.lines.at(-1)?.planId,'');assert.ok(h.markup().includes('人工單價（未知留空）'));
+});
+
+test('rental output never silently saves, and reversed dates prevent external output',async()=>{
+ const h=harness();h.click('加入本張報價');h.click('複製客戶報價');assert.equal(h.clipboard.length,0);
+ h.field('起租日期','2026-11-10');h.field('歸還日期','2026-11-09');h.click('複製客戶報價');
+ assert.ok(!h.nodes().some(n=>n.type==='button'&&h.text(n)==='只輸出目前畫面'));assert.equal(h.clipboard.length,0);
+});
+test('rental date changes do not change public or custom prices, templates append once',()=>{
+ const h=harness();h.click('加入本張報價');const before=core.calculateQuote(h.q).total;
+ h.field('起租日期','2026-11-10');h.field('歸還日期','2026-11-25');assert.equal(core.calculateQuote(h.q).total,before);
+ assert.match(h.markup(),/租期已變更/);h.click('已核對期數與金額');assert.doesNotMatch(h.markup(),/租期已變更/);
+ h.field('加入常用客戶備註','約定文字');h.field('加入常用客戶備註','約定文字');assert.equal(h.q.inquiry.notes,'約定文字');
+});
+test('rental save-and-output uses canonical number; failed save never copies',async()=>{
+ const h=harness();h.click('加入本張報價');let saves=0;
+ h.team().onController({save:async()=>{saves++;throw Error('離線')}});
+ h.click('複製客戶報價');await h.clickAsync('保存到團隊並繼續');assert.equal(saves,1);assert.equal(h.clipboard.length,0);assert.match(h.markup(),/離線/);
+ h.team().onController({save:async()=>{const submitted=h.q;const canonical={...submitted,id:'R-TEST-CANONICAL'};const document={head:{revision:1},snapshot:{quote:canonical}};h.team().onSaved(document);h.team().onCanonical(submitted,canonical);return document;}});
+ await h.clickAsync('保存到團隊並繼續');assert.match(h.clipboard[0],/R-TEST-CANONICAL/);assert.match(h.markup(),/已保存到團隊/);
 });

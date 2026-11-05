@@ -73,8 +73,11 @@ export default function TeamWorkspace({
   onLoad,
   onCanonical,
   onClear,
-  onAccess,
+  onAccess, onController, onSaved, onScopeChange,
 }: {
+  onScopeChange?: ()=>void;
+  onController?: (api:{save:()=>Promise<RentalDocument>})=>void;
+  onSaved?: (document:RentalDocument)=>void;
   onAccess: (allowed:boolean)=>void;
   open: boolean;
   onClose: () => void;
@@ -92,6 +95,7 @@ export default function TeamWorkspace({
     [org, setOrg] = useState(""),
     [orgName, setOrgName] = useState(""),
     [role, setRole] = useState("");
+  useEffect(()=>{onScopeChange?.();},[org]);
   const noticeBoard=useRef<ReturnType<typeof createNoticeBoard>|null>(null);
   useEffect(()=>{const b=createNoticeBoard();noticeBoard.current=b;return()=>{b.dispose();noticeBoard.current=null}},[]);
   useEffect(()=>{noticeBoard.current?.setContext({client,user,org,role})},[user,org,role]);
@@ -150,7 +154,7 @@ export default function TeamWorkspace({
   useEffect(() => {
     if (link && quote.id !== link.number) setLink(null);
   }, [quote.id, link]);
-  async function run(action: () => Promise<void>) {
+  async function run(action: () => Promise<unknown>) {
     if (running.current) return;
     running.current = true;
     setBusy(true);
@@ -373,7 +377,8 @@ export default function TeamWorkspace({
         p_quote: submitted,
       }),
     ) as RentalDocument;
-    if (orgRef.current !== org) return;
+    if (orgRef.current !== org) throw Error("團隊已切換，請回原團隊查詢剛保存的版本");
+    onSaved?.(document);
     if (quoteRef.current.id === submitted.id) {
       onCanonical(submitted, document.snapshot.quote);
       setLink({
@@ -384,11 +389,11 @@ export default function TeamWorkspace({
         fingerprint: quoteFingerprint(document.snapshot.quote),
       });
     }
-    await refreshRows(org, searchApplied);
-    await detail(document.head);
+    try{await refreshRows(org, searchApplied);await detail(document.head);}catch{setMessage("報價已保存，但清單暫時無法更新");}
     setMessage(
       `已同步 ${document.head.number} 第${document.head.revision}版；${document.head.workflow === "APPROVED" ? "內容未變，沿用已保存版本" : "已保存，同事可接手"}。`,
     );
+    return document;
   }
   async function official(head: RentalHead, mode: "copy" | "text" | "print") {
     const token = generation.current;
@@ -417,6 +422,10 @@ export default function TeamWorkspace({
           : "正式文字報價已下載。",
     );
   }
+  useEffect(()=>{onController?.({save:async()=>{
+    if(running.current)throw Error('團隊正在處理操作，請稍候');
+    running.current=true;setBusy(true);try{return await sync();}finally{running.current=false;setBusy(false);}
+  }});});
   const dirty = !!link && link.fingerprint !== quoteFingerprint(quote);
   return (
     <dialog

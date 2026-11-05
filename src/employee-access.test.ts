@@ -10,5 +10,5 @@ test('initial rental page renders employee entry without customer quotation or i
  assert.match(page,/公開保固與驅動查詢/);
  assert.doesNotMatch(page,/class="workspace"|class="print-only"|class="text-preview customer-preview"/);
  assert.doesNotMatch(page,/<button[^>]*>(?:(?!<\/button>)[\s\S])*(?:複製客戶報價|列印客戶報價)<\/button>/);
- assert.match(page,/<button disabled="">[\s\S]*?保存草稿<\/button>/);
+ assert.match(page,/<button disabled="">[\s\S]*?本機備援草稿<\/button>/);
 });
