@@ -64,3 +64,40 @@ export function askOutput(host,review,unsaved,execute,save,notify) {
  }
  const cancel=add('button','返回修改');cancel.type='button';cancel.onclick=()=>{host.hidden=true;};
 }
+
+// Try the modern clipboard first, then the browser's selection-based copy.
+// A denied clipboard is recoverable: the caller shows selectable customer text.
+export async function copyCustomerText(text, env={}) {
+ const nav=env.navigator ?? globalThis.navigator,doc=env.document ?? globalThis.document;
+ if(nav?.clipboard?.writeText){try{await nav.clipboard.writeText(text);return true;}catch{}}
+ if(!doc?.createElement || !doc?.body)return false;
+ let field;const focused=doc.activeElement;
+ try{
+  field=doc.createElement('textarea');field.value=text;field.readOnly=true;
+  field.setAttribute('aria-label','客戶報價複製備援');
+  field.style.cssText='position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;font-size:16px';
+  // Appending inside the active modal keeps the fallback out of its inert background.
+  const parent=doc.querySelector?.('dialog[open]') || doc.body;parent.append(field);
+  field.focus();field.select();field.setSelectionRange?.(0,text.length);
+  return doc.execCommand?.('copy')===true;
+ }catch{return false;}finally{field?.remove();focused?.focus?.({preventScroll:true});}
+}
+
+
+export function closeCustomerDialogs(doc=globalThis.document){for(const d of doc?.querySelectorAll?.('.customer-copy-owned') || []){d.close?.();d.remove();}}
+export function showManualCustomerCopy(text,doc=globalThis.document){
+ if(!doc?.body)return;
+ const dialog=doc.createElement('dialog');dialog.className='customer-output-dialog customer-copy-owned';dialog.setAttribute('aria-label','手動複製客戶報價');
+ const title=doc.createElement('h2');title.textContent='手動複製客戶報價';
+ const hint=doc.createElement('p');hint.textContent='瀏覽器未允許自動複製。請按「選取全部文字」，再長按選「複製」，貼到LINE。也可改用Chrome或Safari開啟網站。';
+ const field=doc.createElement('textarea');field.readOnly=true;field.value=text;field.setAttribute('aria-label','可手動複製的客戶報價');
+ const buttons=doc.createElement('div');buttons.className='output-dialog-actions';
+ const select=doc.createElement('button');select.type='button';select.textContent='選取全部文字';select.onclick=()=>{field.focus();field.select();field.setSelectionRange?.(0,text.length);};
+ const close=doc.createElement('button');close.type='button';close.textContent='完成／關閉';close.onclick=()=>{dialog.close?.();dialog.remove();};
+ dialog.onclose=()=>dialog.remove();buttons.append(select,close);dialog.append(title,hint,field,buttons);doc.body.append(dialog);
+ if(dialog.showModal)dialog.showModal();else dialog.setAttribute('open','');
+}
+export async function copyCustomerQuote(text,notify,env={}){
+ if(await copyCustomerText(text,env)){notify('✓ 已複製客戶報價，可貼到LINE或訊息。');return true;}
+ showManualCustomerCopy(text,env.document ?? globalThis.document);notify('自動複製未完成，已開啟可手動複製的客戶報價。');return false;
+}

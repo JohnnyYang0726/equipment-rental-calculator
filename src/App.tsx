@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useRef, useState, useCallback } from "react";
+import React, { lazy, Suspense, useRef, useState, useCallback, useEffect } from "react";
 const TeamWorkspace = lazy(() => import("./TeamWorkspace"));
 import { customerDocumentHtml, CUSTOMER_DOCUMENT_CSS } from "./customer-document";
 import {
@@ -31,7 +31,7 @@ import {
   type Line,
   type Kind,
 } from "./quote-core";
-import { appendTemplate, RENTAL_TEMPLATES, dateHints } from './quote-workflow.js';
+import { appendTemplate, RENTAL_TEMPLATES, dateHints, copyCustomerQuote, closeCustomerDialogs } from './quote-workflow.js';
 import { flushSync } from 'react-dom';
 import { quoteFingerprint } from './team-format';
 const STORAGE = "yj_rental_inquiry_v1";
@@ -116,7 +116,7 @@ function download(name: string, text: string, type: string) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(u), 1000);
 }
-const HELP = [
+const HELP = [{"title": "手機複製與確認視窗", "lead": "未保存或有漏填時，確認會顯示在畫面中央。", "steps": ["按複製客戶報價，選保存到團隊並繼續，或只輸出目前畫面。", "看到已複製成功提示後，貼到LINE。", "若瀏覽器拒絕複製，按選取全部文字，再長按選複製；也可用Chrome或Safari開啟網站。"], "notes": [["保存失敗", "會留在確認視窗顯示原因，不會誤顯示複製成功。"]]},
   {
     "title": "新版：保存、輸出與提醒",
     "lead": "先保存讓同事接手，再交付客戶；不用等主管核准。",
@@ -308,7 +308,7 @@ export default function App() {
   const [teamOpen, setTeamOpen] = useState(true);
   const [teamStarted, setTeamStarted] = useState(true);
   const [quoteAccess,setQuoteAccess]=useState(false);
-  const onAccess=useCallback((allowed:boolean)=>{setQuoteAccess(allowed);if(!allowed)setTeamOpen(true);},[]);
+  const onAccess=useCallback((allowed:boolean)=>{setQuoteAccess(allowed);if(!allowed){closeCustomerDialogs();setTeamOpen(true);}},[]);
   const [resetKey, setResetKey] = useState(0);
   const file = useRef<HTMLInputElement>(null),
     help = useRef<HTMLDialogElement>(null),
@@ -318,8 +318,12 @@ export default function App() {
   const [savedInfo,setSavedInfo]=useState({key:'',label:'尚未保存到團隊'});
   const [outputRequest,setOutputRequest]=useState<{mode:string,key:string}|null>(null);
   const [workflowBusy,setWorkflowBusy]=useState(false);
+  const outputDialog=useRef<HTMLDialogElement>(null),outputRunning=useRef(false);
+  const [outputMessage,setOutputMessage]=useState('');
+  useEffect(()=>{const dialog=outputDialog.current;if(outputRequest){if(!dialog?.open)dialog?.showModal?.();}else if(dialog?.open)dialog.close();},[outputRequest]);
   const [datesChanged,setDatesChanged]=useState(false);
   const [printText,setPrintText]=useState('');
+  useEffect(()=>{if(!quoteAccess){setOutputRequest(null);closeCustomerDialogs();}},[quoteAccess]);
   const i = q.inquiry;
   const s = calculateQuote(q);
   const text = quoteText(q);
@@ -338,28 +342,29 @@ export default function App() {
     setWorkflowBusy(true);try{return await teamApi.current.save();}finally{setWorkflowBusy(false);}
   }
   function requestOutput(mode:string){
-    if(isUnsaved||workflowWarnings.length||workflowErrors.length){setOutputRequest({mode,key});setTimeout(()=>{if(typeof document!=='undefined')document.getElementById('rental-output-confirm')?.scrollIntoView({behavior:'smooth',block:'center'});},0);}
+    setOutputMessage('');if(isUnsaved||workflowWarnings.length||workflowErrors.length){setOutputRequest({mode,key});}
     else void deliver(mode,q).catch(e=>setMessage(e.message));
   }
   async function deliver(mode:string,value:Quote){
+    if(!quoteAccess)throw Error('請先登入員工帳號');
     const content=quoteText(value);
-    if(mode==='copy')await navigator.clipboard.writeText(content);
+    if(mode==='copy'){await copyCustomerQuote(content,setMessage,{navigator,document});return;}
     else if(mode==='text')download(`${value.id}.txt`,content,'text/plain;charset=utf-8');
     else {flushSync(()=>setPrintText(content));window.print();}
     setMessage(mode==='copy'?'✓ 已複製客戶報價。':mode==='text'?'已下載客戶報價文字。':'已開啟客戶報價列印。');
   }
   async function confirmOutput(withSave:boolean){
-    if(!outputRequest||workflowBusy)return;
+    if(!outputRequest||workflowBusy||outputRunning.current)return;
     if(outputRequest.key!==quoteFingerprint(currentQuote.current)){setOutputRequest(null);setMessage('確認期間內容已變更，請重新按輸出');return;}
     if(workflowErrors.length)return;
-    const submitted=structuredClone(currentQuote.current);
+    const submitted=structuredClone(currentQuote.current);outputRunning.current=true;setOutputMessage(withSave?'正在保存到團隊…':'正在準備客戶報價…');
     try{
       let value=submitted;
       if(withSave){const document=await saveToTeam();value=document.snapshot.quote;}
       const sameContent=(a:Quote,b:Quote)=>quoteFingerprint({...a,id:''})===quoteFingerprint({...b,id:''});
       if(!sameContent(currentQuote.current,submitted))throw Error('保存期間內容已變更，請核對目前畫面後重新輸出');
       await deliver(outputRequest.mode,value);setOutputRequest(null);
-    }catch(e){setMessage(e?.message || '輸出未完成，原輸入已保留。');}
+    }catch(e){const message=e?.message || '輸出未完成，原輸入已保留。';setMessage(message);setOutputMessage(message);}finally{outputRunning.current=false;}
   }
   function edit(fn: (v: Quote) => Quote) {
     setQ((prev) => {
@@ -504,7 +509,7 @@ export default function App() {
           <div>
             <p className="eyebrow">永捷系統科技 · 內部報價工具</p>
             <h1>
-              租賃詢價與多品項報價 <span>v2.2.0</span>
+              租賃詢價與多品項報價 <span>v2.2.1</span>
             </h1>
             <p>先問需求，再逐項估價；特殊服務保留人工確認。</p>
           </div>
@@ -1157,10 +1162,6 @@ export default function App() {
               <button disabled={workflowBusy} onClick={()=>saveToTeam().catch(e=>setMessage(e.message))}>保存到團隊</button>
               {!!dates.errors.length && <p role="alert">{dates.errors.join('；')}</p>}
               {!!dates.warnings.length && <p>{dates.warnings.join('；')}</p>}
-              {outputRequest && <div id="rental-output-confirm" role="alert"><strong>交付前再確認</strong><ul>{(workflowErrors.length?workflowErrors:workflowWarnings).map(t=><li key={t}>{t}</li>)}</ul>
-                {isUnsaved && <p>目前內容尚未保存到團隊，只輸出畫面不代表已共用。</p>}
-                <div className="workflow-actions">{!workflowErrors.length && <>{isUnsaved && <button disabled={workflowBusy} onClick={()=>confirmOutput(true)}>保存到團隊並繼續</button>}<button disabled={workflowBusy} onClick={()=>confirmOutput(false)}>{isUnsaved?'只輸出目前畫面':'確認後繼續'}</button></>}<button disabled={workflowBusy} onClick={()=>setOutputRequest(null)}>返回修改</button></div>
-              </div>}
             </section>
             <p className="order-id">
               {q.id} · {q.lines.length}個品項
@@ -1241,6 +1242,13 @@ export default function App() {
         <CustomerDocument text={printText || text} />
       </section>
       </>}
+      <dialog ref={outputDialog} className="customer-output-dialog no-print" aria-label="交付客戶報價前確認" onCancel={e=>{if(outputRunning.current)e.preventDefault();else setOutputRequest(null);}}>
+        {outputRequest && <><h2>交付客戶報價前確認</h2>{outputMessage && <p role="status">{outputMessage}</p>}
+          <ul>{(workflowErrors.length?workflowErrors:workflowWarnings).map(t=><li key={t}>{t}</li>)}</ul>
+          {isUnsaved && <p>目前有內容尚未保存到團隊，可先保存再交付，或只輸出目前畫面。</p>}
+          <div className="output-dialog-actions">{!workflowErrors.length && <>{isUnsaved && <button disabled={workflowBusy} onClick={()=>confirmOutput(true)}>保存到團隊並繼續</button>}<button disabled={workflowBusy} onClick={()=>confirmOutput(false)}>{isUnsaved?'只輸出目前畫面':'確認後繼續'}</button></>}<button disabled={workflowBusy} onClick={()=>{if(!outputRunning.current)setOutputRequest(null);}}>返回修改</button></div>
+        </>}
+      </dialog>
       <dialog
         ref={help}
         className="help-dialog"

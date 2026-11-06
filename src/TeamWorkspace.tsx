@@ -1,3 +1,4 @@
+import {copyCustomerQuote,closeCustomerDialogs} from './quote-workflow.js';
 import {createNoticeBoard} from './notice-board.js';
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
@@ -135,6 +136,7 @@ export default function TeamWorkspace({
     else if (!open && dialog.current?.open) dialog.current?.close();
   }, [open]);
   const clearPrivate = useCallback(() => {
+    closeCustomerDialogs();
     setRows([]);
     setSelected(null);
     setVersions([]);
@@ -405,7 +407,7 @@ export default function TeamWorkspace({
     ) as RentalDocument;
     if (token !== generation.current || orgRef.current !== head.org_id) return;
     const text = officialText(document);
-    if (mode === "copy") await navigator.clipboard.writeText(text);
+    if (mode === "copy") {await copyCustomerQuote(text,setMessage,{navigator,document});return;}
     else
       file(
         `${head.number}-v${head.revision}.${mode === "print" ? "html" : "txt"}`,
@@ -415,9 +417,7 @@ export default function TeamWorkspace({
           : "text/plain;charset=utf-8",
       );
     setMessage(
-      mode === "copy"
-        ? "✓ 已核對最新共用版本並複製客戶報價。"
-        : mode === "print"
+      mode === "print"
           ? "正式報價已下載；開啟檔案後可按「列印正式報價」。"
           : "正式文字報價已下載。",
     );
