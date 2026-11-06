@@ -531,7 +531,7 @@ export default function App() {
           <div>
             <p className="eyebrow">永捷系統科技 · 內部報價工具</p>
             <h1>
-              租賃詢價與多品項報價 <span>v2.2.2</span>
+              租賃詢價與多品項報價 <span>v2.2.3</span>
             </h1>
             <p>先問需求，再逐項估價；特殊服務保留人工確認。</p>
           </div>
@@ -1281,6 +1281,7 @@ export default function App() {
           <h2 id="help-title">操作說明／電話詢價步驟</h2>
           <button onClick={() => help.current?.close()}>返回報價</button>
         </header>
+        <div className="manual-actions"><p><strong>座位旁參考：一頁快速操作表（A4）</strong>。三套共用的保存、複製與手機手動複製步驟。</p><a href="/manuals/quote-quick-reference-2026-11-06.pdf" target="_blank" rel="noopener noreferrer">開啟／列印快速操作表</a><a href="/manuals/quote-quick-reference-2026-11-06.pdf" download>下載快速操作表 PDF</a></div>
         <div className="manual-actions">
           <p>三套程式共用完整手冊｜2026/11/06 第7版・22 頁。含中央確認視窗、複製成功提示、手機手動複製、保存、列印及完整接案流程。</p>
           <a href="/manuals/employee-handbook-2026-11-06.pdf" target="_blank" rel="noopener noreferrer">開啟／列印員工手冊 PDF</a>
