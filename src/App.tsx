@@ -531,7 +531,7 @@ export default function App() {
           <div>
             <p className="eyebrow">永捷系統科技 · 內部報價工具</p>
             <h1>
-              租賃詢價與多品項報價 <span>v2.2.4</span>
+              租賃詢價與多品項報價 <span>v2.2.5</span>
             </h1>
             <p>先問需求，再逐項估價；特殊服務保留人工確認。</p>
           </div>
@@ -1283,9 +1283,9 @@ export default function App() {
         </header>
         <div className="manual-actions"><p><strong>座位旁參考：一頁快速操作表（A4）</strong>。含三套正式網址與 QR Code，以及保存、複製與手機手動複製步驟。</p><a href="/manuals/quote-quick-reference-2026-11-06-v2.pdf" target="_blank" rel="noopener noreferrer">開啟／列印快速操作表</a><a href="/manuals/quote-quick-reference-2026-11-06-v2.pdf" download>下載快速操作表 PDF</a></div>
         <div className="manual-actions">
-          <p>三套程式共用完整手冊｜2026/11/06 第7版・22 頁。含中央確認視窗、複製成功提示、手機手動複製、保存、列印及完整接案流程。</p>
-          <a href="/manuals/employee-handbook-2026-11-06.pdf" target="_blank" rel="noopener noreferrer">開啟／列印員工手冊 PDF</a>
-          <a href="/manuals/employee-handbook-2026-11-06.pdf" download>下載員工手冊 PDF</a>
+          <p>三套程式共用完整手冊｜2026/11/06 第8版・22 頁。含三套正式網址與 QR Code、中央確認視窗、複製成功提示、手機手動複製、保存、列印及完整接案流程。</p>
+          <a href="/manuals/employee-handbook-2026-11-06-v8.pdf" target="_blank" rel="noopener noreferrer">開啟／列印員工手冊 PDF</a>
+          <a href="/manuals/employee-handbook-2026-11-06-v8.pdf" download>下載員工手冊 PDF</a>
         </div>
         <p>先用已開通的員工帳號登入。三套程式共用帳號，各網站分別登入；忘記密碼在登入頁按「寄送重設信」，由本人開信設定。主管可在員工名單寄送重設信，也可停用帳號與調整角色。保固與驅動查詢免登入。</p><ol>
           {HELP.map((chapter) => (
